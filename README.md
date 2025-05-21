@@ -39,7 +39,7 @@ Clone the repo:
 bash
 Copy
 Edit
-git clone https://github.com/your-username/text-to-ppt.git
+git clone https://github.com/yswapchavan86/text-to-ppt.git
 cd text-to-ppt
 Set up backend:
 
