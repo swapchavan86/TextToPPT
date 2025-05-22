@@ -1,66 +1,106 @@
-from fastapi import FastAPI, HTTPException
-from fastapi.responses import FileResponse
-from pydantic import BaseModel
-import openai
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.middleware.cors import CORSMiddleware
 from pptx import Presentation
 from pptx.util import Inches
-import uuid
+from pptx.shapes.autoshape import Shape
+from openai import OpenAI
+from pydantic import BaseModel
+import io
+from starlette.responses import StreamingResponse
 import os
+from pathlib import Path
+
+from dotenv import load_dotenv
+env_path = Path(__file__).parent / ".env"
+load_dotenv(dotenv_path=env_path)
+print("OpenAI API Key:", os.getenv("OPENAI_API_KEY"))
+client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 app = FastAPI()
 
-openai.api_key = os.getenv("OPENAI_API_KEY")
+# Enable CORS for frontend
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
-class PPTRequest(BaseModel):
-    text: str
-    tone: str = "formal"  # optional tone parameter
+class SlideRequest(BaseModel):
+    topic: str
+    tone: str = "educational"
 
-def generate_pptx(slides_data, filename):
-    prs = Presentation()
-    for slide_content in slides_data:
-        slide = prs.slides.add_slide(prs.slide_layouts[1])  # Title and Content layout
-        title = slide.shapes.title
-        body = slide.shapes.placeholders[1].text_frame
-
-        title.text = slide_content.get("title", "No Title")
-        body.clear()
-        for bullet in slide_content.get("bullets", []):
-            p = body.add_paragraph()
-            p.text = bullet
-            p.level = 0
-    prs.save(filename)
-
-def parse_gpt_response_to_slides(gpt_response_text):
-    # Example: parse GPT output into list of slides with title and bullets
-    # This depends on your GPT prompt formatting
-    # Here’s a simple example assuming slides separated by "---"
-    slides = []
-    parts = gpt_response_text.split("---")
-    for part in parts:
-        lines = part.strip().split("\n")
-        if not lines:
-            continue
-        title = lines[0]
-        bullets = [line.strip("- ").strip() for line in lines[1:] if line.startswith("-")]
-        slides.append({"title": title, "bullets": bullets})
-    return slides
+def generate_prompt(topic: str, tone: str) -> str:
+    return (
+        f"Create a {tone} PowerPoint presentation outline on the topic: '{topic}'.\n"
+        "Return it in this JSON format:\n"
+        "{\n"
+        "  \"slides\": [\n"
+        "    {\"title\": \"Slide Title\", \"bullets\": [\"Point 1\", \"Point 2\"]},\n"
+        "    {\"title\": \"Another Slide\", \"bullets\": [\"Bullet A\", \"Bullet B\"]}\n"
+        "  ]\n"
+        "}"
+    )
 
 @app.post("/generate-ppt/")
-async def generate_ppt(request: PPTRequest):
-    prompt = f"Create a professional PowerPoint presentation outline on the topic below with slide titles and bullet points in {request.tone} tone:\n\n{request.text}\n\nFormat the response as:\nSlide Title\n- Bullet point 1\n- Bullet point 2\n---\nNext Slide Title\n- Bullet 1\n- Bullet 2"
+async def generate_ppt(slide_request: SlideRequest):
+    prompt = generate_prompt(slide_request.topic, slide_request.tone)
+
     try:
-        response = openai.Completion.create(
-            engine="text-davinci-003",
-            prompt=prompt,
-            max_tokens=800,
-            temperature=0.7,
-            n=1,
-            stop=None,
+        response = client.chat.completions.create(
+            model="gpt-3.5-turbo",
+            messages=[
+                {"role": "system", "content": "You are an expert in generating presentation slides."},
+                {"role": "user", "content": prompt}
+            ]
         )
-        gpt_text = response.choices[0].text.strip()
-        slides_data = parse_gpt_response_to_slides(gpt_text)
-        filename = f"{uuid.uuid4()}.pptx"
-        generate_pptx(slides_data, filename)
-        return FileResponse(path=filename, filename="presentation.pptx", media_type='application/vnd.openxmlformats-officedocument.presentationml.presentation')
+        output_text = response.choices[0].message.content
+        if output_text is None:
+            raise ValueError("Empty response from OpenAI")
+        output_text = output_text.strip()
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+    # Extract JSON from response
+    import json
+    try:
+        data = json.loads(output_text)
+        slides = data.get("slides", [])
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error parsing JSON: {e}")
+
+    # Create the PPT
+    prs = Presentation()
+    for slide_data in slides:
+        slide_layout = prs.slide_layouts[1]  # Title and Content
+        slide = prs.slides.add_slide(slide_layout)
+
+        # Set title safely
+        title_shape = slide.shapes.title
+        if title_shape:
+            title_shape.text = slide_data.get("title", "Untitled Slide")
+
+        # Set bullet points safely
+        try:
+            content_shape = slide.placeholders[1]
+            if isinstance(content_shape, Shape) and content_shape.text_frame:
+                bullets = slide_data.get("bullets", [])
+                if bullets:
+                    content_shape.text_frame.text = bullets[0]
+                    for bullet in bullets[1:]:
+                        p = content_shape.text_frame.add_paragraph()
+                        p.text = bullet
+        except Exception as e:
+            print(f"Error adding content: {e}")
+
+    # Save PPT to memory buffer
+    ppt_io = io.BytesIO()
+    prs.save(ppt_io)
+    ppt_io.seek(0)
+
+    return StreamingResponse(
+        ppt_io,
+        media_type="application/vnd.openxmlformats-officedocument.presentationml.presentation",
+        headers={"Content-Disposition": "attachment; filename=generated_ppt.pptx"}
+    )
