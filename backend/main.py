@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pptx import Presentation
 from pptx.util import Inches
@@ -9,10 +9,18 @@ import io
 from starlette.responses import StreamingResponse
 import os
 from pathlib import Path
+import json
+import time
+import logging
 
 from dotenv import load_dotenv
 env_path = Path(__file__).parent / ".env"
 load_dotenv(dotenv_path=env_path)
+
+# Setup logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 app = FastAPI()
@@ -42,34 +50,50 @@ def generate_prompt(topic: str, tone: str) -> str:
         "}"
     )
 
+def call_openai_with_retry(prompt: str, retries=3, initial_delay=5):
+    delay = initial_delay
+    for attempt in range(1, retries + 1):
+        try:
+            logger.info(f"OpenAI API call attempt {attempt}")
+            response = client.chat.completions.create(
+                model="gpt-3.5-turbo",
+                messages=[
+                    {"role": "system", "content": "You are an expert in generating presentation slides."},
+                    {"role": "user", "content": prompt},
+                ],
+                timeout=30
+            )
+            return response
+        except Exception as e:
+            err_msg = str(e)
+            if "rate limit" in err_msg.lower() or "429" in err_msg:
+                if attempt == retries:
+                    logger.error("Rate limit exceeded, no more retries left.")
+                    raise HTTPException(status_code=429, detail="Rate limit exceeded. Please try again later.")
+                logger.warning(f"Rate limit hit, retrying after {delay} seconds...")
+                time.sleep(delay)
+                delay *= 2
+            else:
+                logger.error(f"OpenAI API error: {err_msg}")
+                raise HTTPException(status_code=500, detail=f"OpenAI API error: {err_msg}")
+
 @app.post("/generate-ppt/")
 async def generate_ppt(slide_request: SlideRequest):
     prompt = generate_prompt(slide_request.topic, slide_request.tone)
 
-    try:
-        response = client.chat.completions.create(
-            model="gpt-3.5-turbo",
-            messages=[
-                {"role": "system", "content": "You are an expert in generating presentation slides."},
-                {"role": "user", "content": prompt}
-            ]
-        )
-        output_text = response.choices[0].message.content
-        if output_text is None:
-            raise ValueError("Empty response from OpenAI")
-        output_text = output_text.strip()
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    response = call_openai_with_retry(prompt)
+    output_text = response.choices[0].message.content
+    if output_text is None:
+        raise HTTPException(status_code=500, detail="Empty response from OpenAI")
 
-    # Extract JSON from response
-    import json
+    output_text = output_text.strip()
+
     try:
         data = json.loads(output_text)
         slides = data.get("slides", [])
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error parsing JSON: {e}")
+        raise HTTPException(status_code=500, detail=f"Error parsing JSON from OpenAI response: {e}")
 
-    # Create the PPT
     prs = Presentation()
     for slide_data in slides:
         slide_layout = prs.slide_layouts[1]  # Title and Content
@@ -91,9 +115,8 @@ async def generate_ppt(slide_request: SlideRequest):
                         p = content_shape.text_frame.add_paragraph()
                         p.text = bullet
         except Exception as e:
-            print(f"Error adding content: {e}")
+            logger.warning(f"Error adding content to slide: {e}")
 
-    # Save PPT to memory buffer
     ppt_io = io.BytesIO()
     prs.save(ppt_io)
     ppt_io.seek(0)
