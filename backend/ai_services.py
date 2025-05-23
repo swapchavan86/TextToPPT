@@ -13,7 +13,7 @@ try:
     SDK_CONFIGURED_SUCCESSFULLY = False
     if GOOGLE_API_KEY and genai:
         try:
-            genai.configure(api_key=GOOGLE_API_KEY)
+            genai.configure(api_key=GOOGLE_API_KEY) # type: ignore
             SDK_CONFIGURED_SUCCESSFULLY = True
             logging.info("Google Generative AI SDK configured successfully in ai_services.py.")
         except Exception as e:
@@ -66,7 +66,7 @@ async def call_google_ai_for_ppt_content(prompt_text: str, model_name: str = "ge
         logger.error("Google AI SDK not configured or library not loaded. Cannot make API call.")
         raise HTTPException(status_code=503, detail="AI Service (Text) Unconfigured or Unavailable.")
     
-    model = genai.GenerativeModel(model_name)
+    model = genai.GenerativeModel(model_name) # type: ignore
     for attempt in range(max_retries):
         try:
             logger.info(f"Google AI API call attempt {attempt + 1} using model {model_name} for PPT content.")
