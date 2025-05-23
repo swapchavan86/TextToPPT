@@ -8,6 +8,7 @@ from typing import List, Dict, Any, Optional
 from pptx import Presentation
 from pptx.dml.color import RGBColor
 from pptx.util import Pt, Inches
+from pptx.enum.text import MSO_AUTO_SIZE, MSO_ANCHOR # Import necessary enums
 
 from .config import ( # Import from local config
     PROFESSIONAL_COLORS_HEX,
@@ -18,41 +19,206 @@ from .config import ( # Import from local config
 
 logger = logging.getLogger(__name__)
 
-def _apply_run_style(run, is_title_style=False):
-    """Internal helper to style a pptx run object."""
+def _apply_run_style(run, is_title_style=False, is_description_style=False):
+    """Internal helper to style a pptx run object with professional, consistent styles."""
     if is_title_style:
-        run.font.color.rgb = RGBColor.from_string(random.choice(list(PROFESSIONAL_COLORS_HEX.values())))
-        run.font.name = random.choice(PROFESSIONAL_FONT_NAMES)
-        run.font.size = Pt(random.randint(30, 38))
-        run.font.bold = random.choice([True, False])
-    else:  # Body style
-        run.font.name = random.choice(PROFESSIONAL_FONT_NAMES[:2])
-        run.font.size = Pt(random.randint(16, 20))
-        run.font.color.rgb = RGBColor.from_string("333333")
+        # Consistent professional title styling
+        run.font.color.rgb = RGBColor.from_string(PROFESSIONAL_COLORS_HEX["dark_blue"]) # Consistent dark blue title color
+        run.font.name = PROFESSIONAL_FONT_NAMES[0] # Use the first professional font (e.g., Calibri)
+        run.font.size = Pt(36) # Consistent title size
+        run.font.bold = True # Titles should always be bold for professionalism
+    elif is_description_style:
+        # Consistent professional description text styling
+        run.font.name = PROFESSIONAL_FONT_NAMES[0]
+        run.font.size = Pt(16) # Smaller size for descriptions
+        run.font.color.rgb = RGBColor.from_string("555555") # Slightly lighter grey for descriptions
+        run.font.bold = False
+    else:  # Body style (for main bullet points)
+        # Consistent professional body text styling
+        run.font.name = PROFESSIONAL_FONT_NAMES[0] # Use the same professional font as titles
+        run.font.size = Pt(20) # Consistent body text size for main points
+        run.font.color.rgb = RGBColor.from_string(PROFESSIONAL_COLORS_HEX["dark_grey"]) # Consistent dark grey for body text
+        run.font.bold = False # Body text usually not bold
 
-def _style_text_shape(shape_object, is_title_style=False):
-    """Internal helper to style text within a shape object."""
-    if not hasattr(shape_object, 'has_text_frame') or not shape_object.has_text_frame:
-        return
+def _style_text_shape(shape_object, is_title_style=False, is_description_style=False):
+    """Internal helper to style a pptx text shape object."""
     text_frame = shape_object.text_frame
-    for paragraph in text_frame.paragraphs:
-        if not paragraph.runs:
-            run = paragraph.add_run()
-            _apply_run_style(run, is_title_style=is_title_style)
-            if hasattr(shape_object, 'text') and not shape_object.text and run.text:
-                 run.text = "" 
-        else:
-            for run in paragraph.runs:
-                _apply_run_style(run, is_title_style=is_title_style)
-    if not text_frame.paragraphs and hasattr(shape_object, 'text') and shape_object.text: # If shape has text but no paras
-        p = text_frame.add_paragraph()
-        run = p.add_run()
-        run.text = shape_object.text 
-        _apply_run_style(run, is_title_style=is_title_style)
+    text_frame.auto_size = MSO_AUTO_SIZE.SHAPE_TO_FIT_TEXT # Allows text to fit the shape
+    text_frame.vertical_anchor = MSO_ANCHOR.TOP # Align text to the top of the shape
 
+    # Apply consistent styling to all paragraphs within the text frame
+    for p in text_frame.paragraphs:
+        if p.runs:
+            # Apply run style based on whether it's a title, description, or regular body text
+            _apply_run_style(p.runs[0], is_title_style=is_title_style, is_description_style=is_description_style)
+
+# MODIFIED FUNCTION SIGNATURE AND USAGE
+def create_presentation_from_data(slide_data: List[Dict[str, Any]], full_output_path: str) -> str:
+    """
+    Creates a PowerPoint presentation from structured slide data and saves it to the specified path.
+    Applies professional and consistent styling.
+    :param slide_data: A list of dictionaries, each representing a slide.
+    :param full_output_path: The complete file path (including directory and filename.pptx) to save the presentation.
+    :return: The full path to the generated PPTX file.
+    """
+    prs = Presentation()
+    # No need to os.makedirs here, it's done in main.py
+    # No need to construct full_path here, it's passed directly as full_output_path
+
+    # Define a default layout for content slides (e.g., Title and Content)
+    title_and_content_layout = None
+    for i, layout in enumerate(prs.slide_layouts):
+        if "TITLE AND CONTENT" in layout.name.upper() or "TITLE AND BULLETS" in layout.name.upper():
+            title_and_content_layout = layout
+            break
+    if title_and_content_layout is None:
+        logger.warning("Specific 'Title and Content' layout not found, defaulting to layout index 1.")
+        title_and_content_layout = prs.slide_layouts[1]
+
+    # Use a title slide for the first slide (if available, typically layout 0)
+    title_slide_layout = prs.slide_layouts[0]
+    
+    if not slide_data:
+        logger.warning("No slide data provided. Creating a default empty presentation.")
+        slide = prs.slides.add_slide(title_slide_layout)
+        if slide.shapes.title:
+            slide.shapes.title.text = "Empty Presentation"
+            _style_text_shape(slide.shapes.title, is_title_style=True)
+        prs.save(full_output_path) # Use the passed path
+        return full_output_path
+
+    # Process the first slide as the Title Slide
+    first_slide_data = slide_data[0]
+    slide = prs.slides.add_slide(title_slide_layout)
+    _apply_random_slide_background(slide) # Apply a subtle background
+
+    title_shape = slide.shapes.title
+    if title_shape:
+        title_shape.text = first_slide_data.get("title", "AI Generated Presentation")
+        _style_text_shape(title_shape, is_title_style=True)
+    else:
+        logger.warning("No title placeholder found for the first slide. Adding manually.")
+        left, top, width, height = Inches(0.5), Inches(1), Inches(9), Inches(1.5)
+        title_shape = slide.shapes.add_textbox(left, top, width, height)
+        title_shape.text_frame.text = first_slide_data.get("title", "AI Generated Presentation")
+        _style_text_shape(title_shape, is_title_style=True)
+
+    # For the subtitle on the title slide
+    subtitle_shape = None
+    for ph in slide.placeholders:
+        if ph.is_placeholder and ph.placeholder_format.idx == 1: # Subtitle placeholder index
+            subtitle_shape = ph
+            break
+    
+    if subtitle_shape:
+        subtitle_text = first_slide_data.get("description", "A Comprehensive Overview")
+        if isinstance(first_slide_data.get("points"), list) and first_slide_data.get("points"):
+            subtitle_text = first_slide_data.get("points")[0] # Use first point as subtitle if available
+        subtitle_shape.text = subtitle_text
+        _style_text_shape(subtitle_shape, is_title_style=False) # Use body style for subtitle
+    else:
+        logger.warning("No subtitle placeholder found for the first slide. Adding manually.")
+        left, top, width, height = Inches(0.5), Inches(3), Inches(9), Inches(1)
+        subtitle_shape = slide.shapes.add_textbox(left, top, width, height)
+        subtitle_shape.text_frame.text = first_slide_data.get("description", "A Comprehensive Overview")
+        _style_text_shape(subtitle_shape, is_title_style=False)
+
+
+    logger.info("Title slide created.")
+
+    # Add content slides
+    for i, slide_info in enumerate(slide_data[1:]): # Start from the second slide for content
+        slide_title_text = slide_info.get("title", f"Slide {i+2}")
+        points = slide_info.get("points", [])
+        description = slide_info.get("description", "")
+
+        logger.info(f"Adding content slide: {slide_title_text}")
+
+        slide = prs.slides.add_slide(title_and_content_layout)
+        _apply_random_slide_background(slide) # Apply a subtle background
+
+        # --- Set Slide Title ---
+        title_shape = slide.shapes.title
+        if title_shape:
+            title_shape.text = slide_title_text
+            _style_text_shape(title_shape, is_title_style=True)
+        else:
+            logger.warning(f"No title placeholder found for slide {i+2}. Adding manually.")
+            left, top, width, height = Inches(0.5), Inches(0.2), Inches(9), Inches(1)
+            title_shape = slide.shapes.add_textbox(left, top, width, height)
+            title_shape.text_frame.text = slide_title_text
+            _style_text_shape(title_shape, is_title_style=True)
+
+
+        # --- Set Slide Body (Bullet Points) ---
+        body_shape = None
+        for shape in slide.placeholders:
+            if shape.is_placeholder and (
+                "body" in shape.name.lower() or
+                "content" in shape.name.lower() or
+                "text" in shape.name.lower() # Generic text placeholder
+            ):
+                body_shape = shape
+                break
+        if body_shape is None:
+            # Fallback: add a new textbox if no suitable placeholder found
+            logger.warning(f"No suitable body placeholder found for slide {i+2}. Adding body textbox manually.")
+            left, top, width, height = Inches(0.5), Inches(1.5), Inches(9), Inches(4) # Adjusted height
+            body_shape = slide.shapes.add_textbox(left, top, width, height)
+
+        if body_shape:
+            tf = body_shape.text_frame
+            tf.clear() # Clear existing text
+            tf.word_wrap = True
+
+            # Add bullet points
+            for point_text in points:
+                if isinstance(point_text, str):
+                    p = tf.add_paragraph()
+                    p.text = point_text
+                    p.level = 0 # Main bullet point level
+                    _apply_run_style(p.runs[0], is_title_style=False, is_description_style=False)
+                else:
+                    logger.warning(f"Invalid point type: {point_text} in '{slide_title_text}'")
+        else:
+            logger.warning(f"No body placeholder for slide: {slide_title_text}. Bullet points might not be fully added.")
+
+
+        # --- Add Description (separate text box for clear separation) ---
+        if description.strip():
+            # Position description below bullet points, ensuring clear separation
+            # Calculate top position based on approximate height of bullet points
+            # This is a heuristic and might need fine-tuning based on actual content length
+            desc_left = Inches(0.5)
+            desc_top = Inches(5.5) # Start lower to ensure space for points
+            desc_width = Inches(9)
+            desc_height = Inches(1.5) # Ample height for description
+
+            description_shape = slide.shapes.add_textbox(desc_left, desc_top, desc_width, desc_height)
+            tf_desc = description_shape.text_frame
+            tf_desc.clear()
+            tf_desc.word_wrap = True
+            
+            p_desc = tf_desc.add_paragraph()
+            p_desc.text = description
+            p_desc.level = 0 # Description as a main paragraph
+            _apply_run_style(p_desc.runs[0], is_title_style=False, is_description_style=True)
+            logger.debug(f"Added description to slide {i+2}.")
+        
+        logger.debug(f"Content slide {i+2} finished.")
+
+    try:
+        logger.info(f"Saving PPT file to {full_output_path}...") # Use the passed path
+        prs.save(full_output_path)
+        logger.info("PPT file saved successfully.")
+    except Exception as e:
+        logger.error(f"Failed to save PPT file {full_output_path}: {e}", exc_info=True)
+        raise # Re-raise the exception for FastAPI to catch and return 500
+
+    return full_output_path
 
 def _apply_random_slide_background(slide):
-    """Internal helper to apply random background to a slide."""
+    """Internal helper to apply a random subtle background to a slide."""
     if SUBTLE_BACKGROUND_COLORS_HEX:
         try:
             fill = slide.background.fill
@@ -60,111 +226,3 @@ def _apply_random_slide_background(slide):
             fill.fore_color.rgb = RGBColor.from_string(random.choice(SUBTLE_BACKGROUND_COLORS_HEX))
         except Exception as e:
             logger.warning(f"Could not set slide background: {e}")
-
-def create_presentation_from_data(
-    slide_data_list: List[Dict[str, Any]],
-    output_filename_base: str = "presentation",
-    apply_styles: bool = True
-    # image_paths: Dict[int, Optional[str]] = None # For future image generation
-) -> str:
-    """
-    Creates a PowerPoint presentation from structured slide data.
-    Returns the full path to the saved .pptx file.
-    """
-    # if image_paths is None: image_paths = {} # For future image generation
-
-    logger.info(f"Starting PPT creation for {len(slide_data_list)} slides. Styles enabled: {apply_styles}")
-    prs = Presentation()
-    os.makedirs(PPT_OUTPUT_DIR, exist_ok=True)
-    unique_id = uuid.uuid4().hex[:8]
-    output_filename = f"{output_filename_base}_{unique_id}.pptx"
-    full_path = os.path.join(PPT_OUTPUT_DIR, output_filename)
-
-    if not slide_data_list:
-        logger.warning("No slide data provided to create_presentation_from_data. Creating empty PPT.")
-        # Create a single empty title slide for an empty presentation
-        title_slide_layout = prs.slide_layouts[0]
-        slide = prs.slides.add_slide(title_slide_layout)
-        if slide.shapes.title: slide.shapes.title.text = "Empty Presentation"
-        prs.save(full_path)
-        return full_path
-
-    # --- Title Slide (expects first item from AI to be title slide info) ---
-    logger.debug("Processing first slide as title slide...")
-    title_slide_data = slide_data_list[0]
-    title_slide_layout = prs.slide_layouts[0]  # Title Slide Layout
-    slide = prs.slides.add_slide(title_slide_layout)
-    if apply_styles: _apply_random_slide_background(slide)
-
-    main_ppt_title = title_slide_data.get("title", "AI Generated Presentation")
-    main_ppt_subtitle = "Content Overview" # Default subtitle
-    if isinstance(title_slide_data.get("points"), list) and title_slide_data.get("points"):
-        main_ppt_subtitle = title_slide_data.get("points")[0] 
-
-    title_shape = slide.shapes.title
-    subtitle_shape_obj = None
-    if len(slide.placeholders) > 1:
-        try: subtitle_shape_obj = slide.placeholders[1]
-        except IndexError: logger.warning("Title slide layout (0) no placeholder at index 1 for subtitle.")
-    
-    if title_shape:
-        title_shape.text = main_ppt_title
-        if apply_styles: _style_text_shape(title_shape, is_title_style=True)
-    
-    if subtitle_shape_obj:
-        subtitle_shape_obj.text = main_ppt_subtitle
-        if apply_styles: _style_text_shape(subtitle_shape_obj, is_title_style=False)
-    logger.debug("Title slide finished.")
-
-    # --- Content Slides ---
-    content_slide_layout = prs.slide_layouts[1]  # Title and Content Layout
-    for i, slide_content_dict in enumerate(slide_data_list[1:]): # Start from the second item for content
-        actual_index = i + 1 # To match original list index for logging/image mapping
-        logger.debug(f"Creating content slide {i+1} (original index {actual_index})...")
-        if not isinstance(slide_content_dict, dict):
-            logger.warning(f"Skipping invalid content slide data: {slide_content_dict}"); continue
-        
-        slide = prs.slides.add_slide(content_slide_layout)
-        if apply_styles: _apply_random_slide_background(slide)
-
-        slide_title_text = slide_content_dict.get("title", f"Slide {actual_index + 1}")
-        points = slide_content_dict.get("points", [])
-        if not isinstance(points, list):
-            logger.warning(f"Points for '{slide_title_text}' not list."); points = []
-        
-        if slide.shapes.title:
-            slide.shapes.title.text = slide_title_text
-            if apply_styles: _style_text_shape(slide.shapes.title, is_title_style=True)
-        
-        body_shape = None
-        if len(slide.placeholders) > 1: # Body is typically placeholder 1 for layout 1
-            try: body_shape = slide.placeholders[1]
-            except IndexError: logger.warning(f"No placeholder at index 1 for '{slide_title_text}'.")
-        
-        if body_shape:
-            tf = body_shape.text_frame; tf.clear()
-            for point_text in points:
-                if isinstance(point_text, str):
-                    p = tf.add_paragraph(); p.text = point_text; p.level = 0
-                    if apply_styles and p.runs: _apply_run_style(p.runs[0], is_title_style=False)
-                else: logger.warning(f"Invalid point type: {point_text} in '{slide_title_text}'")
-            # Add image here if image_paths[actual_index] exists
-            # image_path = image_paths.get(actual_index)
-            # if image_path and os.path.exists(image_path):
-            #     try:
-            #         # Example placement: Adjust as needed
-            #         slide.shapes.add_picture(image_path, Inches(6), Inches(1.5), height=Inches(2.5))
-            #         logger.info(f"Added image {image_path} to slide {actual_index}")
-            #     except Exception as e:
-            #         logger.error(f"Failed to add picture to slide {actual_index}: {e}")
-
-        else: logger.warning(f"No body placeholder for slide: {slide_title_text}")
-        logger.debug(f"Content slide {i+1} finished.")
-
-    try:
-        logger.info("Saving PPT file..."); prs.save(full_path)
-        logger.info(f"PPT saved to {full_path}"); return full_path
-    except Exception as e:
-        logger.error(f"Failed to save PPT {full_path}: {e}", exc_info=True)
-        # Re-raise or handle as appropriate for the main endpoint
-        raise

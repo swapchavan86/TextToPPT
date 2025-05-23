@@ -131,15 +131,27 @@ function App() {
     if (downloadUrl) {
       console.log("Attempting to trigger download for URL:", downloadUrl);
       setOperationMessage("Download starting...");
-      const anchor = document.createElement('a');
-      anchor.href = downloadUrl;
-      const filename = downloadUrl.substring(downloadUrl.lastIndexOf('/') + 1) || `${textInput.substring(0,20) || "presentation"}.pptx`;
-      anchor.download = filename; 
-      document.body.appendChild(anchor);
-      anchor.click();
-      document.body.removeChild(anchor);
-      setOperationMessage("Download initiated!");
-      // Optionally reset downloadUrl if you want the button to disappear after one click
+
+      const link = document.createElement('a');
+      link.href = downloadUrl;
+      
+      const urlParts = downloadUrl.split('/');
+      const suggestedFilename = urlParts[urlParts.length - 1] || 'presentation.pptx';
+      link.download = suggestedFilename; 
+
+      document.body.appendChild(link);
+      
+      // Programmatically click the link
+      link.click();
+      
+      // Clean up: remove the link after a short delay
+      // This gives the browser a moment to process the click and start the download
+      setTimeout(() => {
+        document.body.removeChild(link);
+      }, 100); // Added a 100ms delay here
+
+      setOperationMessage("Download initiated! Check your browser's downloads.");
+      // Optional: If you want the download button to disappear after being clicked once, uncomment the line below.
       // setTimeout(() => setDownloadUrl(""), 2000); 
     } else {
       console.log("No download URL available to trigger download.");

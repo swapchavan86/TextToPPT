@@ -43,9 +43,9 @@ PLACEHOLDER_IMAGE_FILENAME = "placeholder.png"
 
 # --- CORS Origins ---
 # Allow easy configuration of origins via environment variable or defaults
-FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:3000").strip()
-DEFAULT_ORIGINS = ["http://localhost", "http://localhost:8000"] # Add FastAPI's own port for testing
-EFFECTIVE_ORIGINS = list(set(DEFAULT_ORIGINS + ([FRONTEND_URL] if FRONTEND_URL else [])))
+FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:3000")
+BACKEND_URL = os.getenv("BACKEND_URL", "http://127.0.0.1:8000") # Add this line
+EFFECTIVE_ORIGINS = [FRONTEND_URL, "http://127.0.0.1:3000"]
 
 
 if not GOOGLE_API_KEY:

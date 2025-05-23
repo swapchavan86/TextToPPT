@@ -6,7 +6,7 @@ class TextToPPTRequest(BaseModel):
     text_input: str
     num_slides: Optional[int] = 5
     # generate_images: Optional[bool] = False # Keep for future image generation
-    # desired_tone: Optional[str] = "professional" # Keep for future tone selection
+    desired_tone: Optional[str] = "professional" # Uncommented this line
 
 class PPTGenerationInfoResponse(BaseModel):
     message: str

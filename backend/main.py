@@ -1,24 +1,26 @@
 # backend/main.py
+
 import logging
 import os
 import json
 import asyncio
-from typing import List, Dict, Any, Optional # Keep this for type hinting
-import time # Keep for cleanup task
-import sys # Keep for path manipulation / __main__ block
-import uuid # Keep for ppt_utils if not moved there
-import random # Keep for ppt_utils if not moved there
+from typing import List, Dict, Any, Optional
+import time
+import sys
+import uuid
+import random
 
 
 from fastapi import FastAPI, HTTPException, Request, BackgroundTasks
 from fastapi.responses import FileResponse
-from fastapi.middleware.cors import CORSMiddleware # <<<<<<<<<<<< ADDED THIS IMPORT BACK
+from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
 
 # Import from our new local modules
 from .config import (
     EFFECTIVE_ORIGINS,
     PPT_OUTPUT_DIR,
+    BACKEND_URL, # Make sure to import BACKEND_URL
     # Other configs if needed by main directly
 )
 from .models import (
@@ -28,7 +30,7 @@ from .models import (
 from .ai_services import (
     construct_text_to_slide_prompt,
     call_google_ai_for_ppt_content,
-    SDK_CONFIGURED_SUCCESSFULLY as AI_SDK_CONFIGURED # Alias for clarity
+    SDK_CONFIGURED_SUCCESSFULLY as AI_SDK_CONFIGURED
 )
 from .ppt_utils import (
     create_presentation_from_data
@@ -41,91 +43,90 @@ logger = logging.getLogger(__name__)
 
 
 # --- FastAPI App Initialization ---
-app = FastAPI(title="Text-to-PPT Generator API V2")
-
-# CORS Middleware
-app.add_middleware(
-    CORSMiddleware, # Now defined
-    allow_origins=EFFECTIVE_ORIGINS,
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+app = FastAPI(
+    title="AI PowerPoint Generator API",
+    description="Generate PowerPoint presentations from text using AI.",
+    version="1.0.0",
 )
 
-# --- Background Task for Cleanup ---
-def cleanup_file_task(file_path: str, delay_seconds: int = 600):
-    logger.info(f"Scheduled cleanup for {file_path} in {delay_seconds}s.")
-    time.sleep(delay_seconds) 
-    try:
-        if file_path and os.path.exists(file_path):
+# --- CORS Middleware ---
+# Ensure your frontend URL is listed in EFFECTIVE_ORIGINS in config.py
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=EFFECTIVE_ORIGINS,
+    allow_credentials=True,
+    allow_methods=["*"], # Allows all HTTP methods (GET, POST, etc.)
+    allow_headers=["*"], # Allows all headers
+)
+
+# --- Constants for Cleanup ---
+FILE_CLEANUP_DELAY_SECONDS = 300 # 5 minutes
+
+
+# --- Background Task for File Cleanup ---
+async def cleanup_file(file_path: str, delay: int):
+    await asyncio.sleep(delay)
+    if os.path.exists(file_path):
+        try:
             os.remove(file_path)
             logger.info(f"Cleaned up file: {file_path}")
-        elif file_path:
-            logger.info(f"Cleanup: File not found (already deleted or moved): {file_path}")
-    except OSError as e:
-        logger.error(f"Error cleaning up file {file_path}: {e}")
-
+        except Exception as e:
+            logger.error(f"Error cleaning up file {file_path}: {e}")
 
 # --- API Endpoints ---
+
 @app.post("/generate-ppt/", response_model=PPTGenerationInfoResponse)
-async def generate_ppt_endpoint(request_data: TextToPPTRequest, background_tasks: BackgroundTasks, http_request: Request):
-    if not AI_SDK_CONFIGURED:
-        raise HTTPException(status_code=503, detail="AI Service is not configured on the server.")
+async def generate_ppt(request: TextToPPTRequest, background_tasks: BackgroundTasks):
+    logger.info(f"Received request to generate PPT. Text length: {len(request.text_input)}, Slides: {request.num_slides}, Tone: professional")
     
-    if not request_data.text_input or len(request_data.text_input.strip()) < 10:
-        raise HTTPException(status_code=400, detail="Text input is too short (minimum 10 characters).")
+    if not request.text_input.strip():
+        raise HTTPException(status_code=400, detail="Text input cannot be empty.")
 
-    APPLY_STYLING_IN_PPT = True 
-    logger.info(f"Received /generate-ppt/. Text len: {len(request_data.text_input)}, "
-                f"Slides: {request_data.num_slides}, Styling: {APPLY_STYLING_IN_PPT}")
-    
     try:
-        prompt_for_ai = construct_text_to_slide_prompt(
-            request_data.text_input,
-            request_data.num_slides or 5
+        # Step 1: Call Google AI to generate slide content
+        ai_response_json_str = await call_google_ai_for_ppt_content(
+            text_input=request.text_input,
+            num_slides=request.num_slides,
+            desired_tone="professional" # Hardcoding for now, can be dynamic later
         )
-        raw_slide_content_json = await call_google_ai_for_ppt_content(prompt_for_ai)
-        logger.debug(f"Raw AI output (first 500 chars): {raw_slide_content_json[:500]}...")
-        try:
-            cleaned_json = raw_slide_content_json.strip()
-            if cleaned_json.startswith("```json"): cleaned_json = cleaned_json[len("```json"):].strip()
-            elif cleaned_json.startswith("```"): cleaned_json = cleaned_json[len("```"):].strip()
-            if cleaned_json.endswith("```"): cleaned_json = cleaned_json[:-len("```")].strip()
-            
-            slide_data_list: List[Dict[str, Any]] = json.loads(cleaned_json)
+        ai_data = json.loads(ai_response_json_str)
 
-            if not isinstance(slide_data_list, list) or \
-               not all(isinstance(item, dict) for item in slide_data_list) or \
-               not slide_data_list: 
-                logger.error(f"AI output was not a non-empty list of dictionaries. Type: {type(slide_data_list)}. Content: {cleaned_json[:200]}")
-                raise HTTPException(status_code=500, detail="AI service returned improperly structured data.")
-        except json.JSONDecodeError as e:
-            logger.error(f"Failed to parse JSON from AI: {e}. Raw content: {raw_slide_content_json[:500]}...")
-            raise HTTPException(status_code=500, detail="AI service returned invalid JSON content.")
+        # Step 2: Create PPT file
+        file_uuid = uuid.uuid4()
+        final_file_name = f"presentation_{file_uuid}.pptx"
+        final_file_path = os.path.join(PPT_OUTPUT_DIR, final_file_name)
 
-        ppt_file_path = await asyncio.to_thread(
-            create_presentation_from_data,
-            slide_data_list,
-            "presentation",
-            APPLY_STYLING_IN_PPT
-        )
-        background_tasks.add_task(cleanup_file_task, ppt_file_path)
-        file_name = os.path.basename(ppt_file_path)
-        download_url = f"{http_request.url.scheme}://{http_request.url.netloc}/download/{file_name}"
-        logger.info(f"PPT generation successful. File: {file_name}, Download URL: {download_url}")
+        # Ensure the output directory exists
+        os.makedirs(PPT_OUTPUT_DIR, exist_ok=True)
+        
+        logger.info(f"Creating PPT file: {final_file_name} at {final_file_path}")
+        create_presentation_from_data(ai_data, final_file_path)
+        logger.info("PPT file created successfully.")
+
+        # Construct the absolute download URL
+        # Use the BACKEND_URL from config.py
+        download_url = f"{BACKEND_URL}/download-ppt/{final_file_name}"
+
+        # Add cleanup task (moved here so download URL is ready)
+        background_tasks.add_task(cleanup_file, final_file_path, delay=FILE_CLEANUP_DELAY_SECONDS)
+        logger.info(f"File {final_file_name} scheduled for cleanup in {FILE_CLEANUP_DELAY_SECONDS} seconds.")
+
         return PPTGenerationInfoResponse(
-            message="PPT generated successfully. Use the download URL.",
-            file_name=file_name,
-            download_url=download_url
+            message="Presentation generated successfully!",
+            file_name=final_file_name,
+            download_url=download_url # This will now be an absolute URL
         )
-    except HTTPException: 
-        raise
-    except Exception as e: 
-        logger.error(f"An unexpected error occurred in /generate-ppt/ endpoint: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail="An internal server error occurred while generating the presentation.")
+    except HTTPException as e:
+        logger.error(f"HTTPException during PPT generation: {e.detail}", exc_info=True)
+        raise e
+    except Exception as e:
+        logger.error(f"Unexpected error during PPT generation: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"An unexpected error occurred during PPT generation: {str(e)}")
 
-@app.get("/download/{file_name}")
-async def download_ppt_file(file_name: str):
+@app.get("/download-ppt/{file_name}")
+async def download_ppt(file_name: str):
+    logger.info(f"Received download request for file: {file_name}")
+    # Basic security check to prevent directory traversal
     if ".." in file_name or "/" in file_name or "\\" in file_name:
         raise HTTPException(status_code=400, detail="Invalid filename.")
     file_path = os.path.join(PPT_OUTPUT_DIR, file_name)
@@ -149,7 +150,8 @@ if __name__ == "__main__":
                "Check GOOGLE_API_KEY in your environment or .env file.\n", file=sys.stderr)
     elif 'AI_SDK_CONFIGURED' not in globals():
         print("\nWARNING: AI_SDK_CONFIGURED flag not found. AI service status unknown.\n", file=sys.stderr)
-
-    port = int(os.getenv("PORT", 8000))
-    logger.info(f"Starting Uvicorn server programmatically on http://0.0.0.0:{port}")
-    uvicorn.run(app, host="0.0.0.0", port=port) # Changed from "main:app" to just `app`
+    
+    # Ensure PPT_OUTPUT_DIR exists at startup
+    os.makedirs(PPT_OUTPUT_DIR, exist_ok=True)
+    
+    uvicorn.run(app, host="127.0.0.1", port=8000)
