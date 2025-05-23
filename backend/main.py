@@ -21,7 +21,12 @@ load_dotenv(dotenv_path=env_path)
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+logger.info(f"Loaded OPENAI_API_KEY: {os.getenv('OPENAI_API_KEY') is not None}")
+
+api_key = os.getenv("OPENAI_API_KEY")
+if not api_key:
+    raise RuntimeError("OPENAI_API_KEY is missing or invalid in the .env file")
+client = OpenAI(api_key=api_key)
 
 app = FastAPI()
 

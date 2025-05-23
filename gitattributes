@@ -1,0 +1,27 @@
+# Set default behavior, in case users don't have core.autocrlf set.
+* text=auto
+
+# Explicitly declare text files you want to always be normalized and have LF line endings in the repo
+*.js text eol=lf
+*.jsx text eol=lf
+*.ts text eol=lf
+*.tsx text eol=lf
+*.html text eol=lf
+*.css text eol=lf
+*.scss text eol=lf
+*.json text eol=lf
+*.md text eol=lf
+*.py text eol=lf
+*.gitignore text eol=lf
+*.gitattributes text eol=lf
+
+# Declare files that will always have CRLF line endings in the repo (less common)
+# *.bat text eol=crlf
+
+# Declare files that should not be touched (binary files)
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.pptx binary
+# Add other binary file extensions
