@@ -1,0 +1,23 @@
+{
+  "name": "texttoppt",
+  "version": "1.0.0",
+  "description": "**Text to PPT Generator** is a GenAI-powered tool that helps users convert any topic or text into a structured, professional-looking PowerPoint presentation in seconds. It uses OpenAI's GPT API to generate slide content and `python-pptx` to build downloadable `.pptx` files.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/swapchavan86/TextToPPT.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/swapchavan86/TextToPPT/issues"
+  },
+  "homepage": "https://github.com/swapchavan86/TextToPPT#readme",
+  "devDependencies": {
+    "tailwindcss": "^4.1.7"
+  }
+}

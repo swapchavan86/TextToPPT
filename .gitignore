@@ -1,4 +1,72 @@
+# Python virtual environment
 venv/
+*/venv/
+.venv/
+*/.venv/
+ENV/
+env/
+env.bak/
+venv.bak/
+
+# Python cache files
 __pycache__/
-*.pyc
+*.py[cod]
+*$py.class
+
+# IDE / Editor specific files
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sublime-workspace
+
+# Output files
+generated_files/
+# If you have other output directories, add them too:
+# output/
+# results/
+
+# Log files
+*.log
+logs/
+
+# Environment variables file (VERY IMPORTANT FOR SECURITY)
 .env
+backend/.env 
+# Add any other .env locations if you have them
+
+# OS generated files
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Temporary files
+*.tmp
+*.bak
+*.swp
+*~
+
+# Node.js / Frontend dependencies
+frontend/node_modules/

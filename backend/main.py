@@ -1,128 +1,155 @@
-from fastapi import FastAPI, HTTPException
-from fastapi.middleware.cors import CORSMiddleware
-from pptx import Presentation
-from pptx.util import Inches
-from pptx.shapes.autoshape import Shape
-from openai import OpenAI
-from pydantic import BaseModel
-import io
-from starlette.responses import StreamingResponse
-import os
-from pathlib import Path
-import json
-import time
+# backend/main.py
 import logging
+import os
+import json
+import asyncio
+from typing import List, Dict, Any, Optional # Keep this for type hinting
+import time # Keep for cleanup task
+import sys # Keep for path manipulation / __main__ block
+import uuid # Keep for ppt_utils if not moved there
+import random # Keep for ppt_utils if not moved there
 
-from dotenv import load_dotenv
-env_path = Path(__file__).parent / ".env"
-load_dotenv(dotenv_path=env_path)
 
-# Setup logging
-logging.basicConfig(level=logging.INFO)
+from fastapi import FastAPI, HTTPException, Request, BackgroundTasks
+from fastapi.responses import FileResponse
+from fastapi.middleware.cors import CORSMiddleware # <<<<<<<<<<<< ADDED THIS IMPORT BACK
+import uvicorn
+
+# Import from our new local modules
+from .config import (
+    EFFECTIVE_ORIGINS,
+    PPT_OUTPUT_DIR,
+    # Other configs if needed by main directly
+)
+from .models import (
+    TextToPPTRequest,
+    PPTGenerationInfoResponse
+)
+from .ai_services import (
+    construct_text_to_slide_prompt,
+    call_google_ai_for_ppt_content,
+    SDK_CONFIGURED_SUCCESSFULLY as AI_SDK_CONFIGURED # Alias for clarity
+)
+from .ppt_utils import (
+    create_presentation_from_data
+)
+
+# --- Logging Setup ---
+logging.basicConfig(level=os.getenv("LOG_LEVEL", "INFO").upper(), 
+                    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
-app = FastAPI()
+# --- FastAPI App Initialization ---
+app = FastAPI(title="Text-to-PPT Generator API V2")
 
-# Enable CORS for frontend
+# CORS Middleware
 app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
+    CORSMiddleware, # Now defined
+    allow_origins=EFFECTIVE_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-class SlideRequest(BaseModel):
-    topic: str
-    tone: str = "educational"
-
-def generate_prompt(topic: str, tone: str) -> str:
-    return (
-        f"Create a {tone} PowerPoint presentation outline on the topic: '{topic}'.\n"
-        "Return it in this JSON format:\n"
-        "{\n"
-        "  \"slides\": [\n"
-        "    {\"title\": \"Slide Title\", \"bullets\": [\"Point 1\", \"Point 2\"]},\n"
-        "    {\"title\": \"Another Slide\", \"bullets\": [\"Bullet A\", \"Bullet B\"]}\n"
-        "  ]\n"
-        "}"
-    )
-
-def call_openai_with_retry(prompt: str, retries=3, initial_delay=5):
-    delay = initial_delay
-    for attempt in range(1, retries + 1):
-        try:
-            logger.info(f"OpenAI API call attempt {attempt}")
-            response = client.chat.completions.create(
-                model="gpt-3.5-turbo",
-                messages=[
-                    {"role": "system", "content": "You are an expert in generating presentation slides."},
-                    {"role": "user", "content": prompt},
-                ],
-                timeout=30
-            )
-            return response
-        except Exception as e:
-            err_msg = str(e)
-            if "rate limit" in err_msg.lower() or "429" in err_msg:
-                if attempt == retries:
-                    logger.error("Rate limit exceeded, no more retries left.")
-                    raise HTTPException(status_code=429, detail="Rate limit exceeded. Please try again later.")
-                logger.warning(f"Rate limit hit, retrying after {delay} seconds...")
-                time.sleep(delay)
-                delay *= 2
-            else:
-                logger.error(f"OpenAI API error: {err_msg}")
-                raise HTTPException(status_code=500, detail=f"OpenAI API error: {err_msg}")
-
-@app.post("/generate-ppt/")
-async def generate_ppt(slide_request: SlideRequest):
-    prompt = generate_prompt(slide_request.topic, slide_request.tone)
-
-    response = call_openai_with_retry(prompt)
-    output_text = response.choices[0].message.content
-    if output_text is None:
-        raise HTTPException(status_code=500, detail="Empty response from OpenAI")
-
-    output_text = output_text.strip()
-
+# --- Background Task for Cleanup ---
+def cleanup_file_task(file_path: str, delay_seconds: int = 600):
+    logger.info(f"Scheduled cleanup for {file_path} in {delay_seconds}s.")
+    time.sleep(delay_seconds) 
     try:
-        data = json.loads(output_text)
-        slides = data.get("slides", [])
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error parsing JSON from OpenAI response: {e}")
+        if file_path and os.path.exists(file_path):
+            os.remove(file_path)
+            logger.info(f"Cleaned up file: {file_path}")
+        elif file_path:
+            logger.info(f"Cleanup: File not found (already deleted or moved): {file_path}")
+    except OSError as e:
+        logger.error(f"Error cleaning up file {file_path}: {e}")
 
-    prs = Presentation()
-    for slide_data in slides:
-        slide_layout = prs.slide_layouts[1]  # Title and Content
-        slide = prs.slides.add_slide(slide_layout)
 
-        # Set title safely
-        title_shape = slide.shapes.title
-        if title_shape:
-            title_shape.text = slide_data.get("title", "Untitled Slide")
+# --- API Endpoints ---
+@app.post("/generate-ppt/", response_model=PPTGenerationInfoResponse)
+async def generate_ppt_endpoint(request_data: TextToPPTRequest, background_tasks: BackgroundTasks, http_request: Request):
+    if not AI_SDK_CONFIGURED:
+        raise HTTPException(status_code=503, detail="AI Service is not configured on the server.")
+    
+    if not request_data.text_input or len(request_data.text_input.strip()) < 10:
+        raise HTTPException(status_code=400, detail="Text input is too short (minimum 10 characters).")
 
-        # Set bullet points safely
+    APPLY_STYLING_IN_PPT = True 
+    logger.info(f"Received /generate-ppt/. Text len: {len(request_data.text_input)}, "
+                f"Slides: {request_data.num_slides}, Styling: {APPLY_STYLING_IN_PPT}")
+    
+    try:
+        prompt_for_ai = construct_text_to_slide_prompt(
+            request_data.text_input,
+            request_data.num_slides or 5
+        )
+        raw_slide_content_json = await call_google_ai_for_ppt_content(prompt_for_ai)
+        logger.debug(f"Raw AI output (first 500 chars): {raw_slide_content_json[:500]}...")
         try:
-            content_shape = slide.placeholders[1]
-            if isinstance(content_shape, Shape) and content_shape.text_frame:
-                bullets = slide_data.get("bullets", [])
-                if bullets:
-                    content_shape.text_frame.text = bullets[0]
-                    for bullet in bullets[1:]:
-                        p = content_shape.text_frame.add_paragraph()
-                        p.text = bullet
-        except Exception as e:
-            logger.warning(f"Error adding content to slide: {e}")
+            cleaned_json = raw_slide_content_json.strip()
+            if cleaned_json.startswith("```json"): cleaned_json = cleaned_json[len("```json"):].strip()
+            elif cleaned_json.startswith("```"): cleaned_json = cleaned_json[len("```"):].strip()
+            if cleaned_json.endswith("```"): cleaned_json = cleaned_json[:-len("```")].strip()
+            
+            slide_data_list: List[Dict[str, Any]] = json.loads(cleaned_json)
 
-    ppt_io = io.BytesIO()
-    prs.save(ppt_io)
-    ppt_io.seek(0)
+            if not isinstance(slide_data_list, list) or \
+               not all(isinstance(item, dict) for item in slide_data_list) or \
+               not slide_data_list: 
+                logger.error(f"AI output was not a non-empty list of dictionaries. Type: {type(slide_data_list)}. Content: {cleaned_json[:200]}")
+                raise HTTPException(status_code=500, detail="AI service returned improperly structured data.")
+        except json.JSONDecodeError as e:
+            logger.error(f"Failed to parse JSON from AI: {e}. Raw content: {raw_slide_content_json[:500]}...")
+            raise HTTPException(status_code=500, detail="AI service returned invalid JSON content.")
 
-    return StreamingResponse(
-        ppt_io,
-        media_type="application/vnd.openxmlformats-officedocument.presentationml.presentation",
-        headers={"Content-Disposition": "attachment; filename=generated_ppt.pptx"}
-    )
+        ppt_file_path = await asyncio.to_thread(
+            create_presentation_from_data,
+            slide_data_list,
+            "presentation",
+            APPLY_STYLING_IN_PPT
+        )
+        background_tasks.add_task(cleanup_file_task, ppt_file_path)
+        file_name = os.path.basename(ppt_file_path)
+        download_url = f"{http_request.url.scheme}://{http_request.url.netloc}/download/{file_name}"
+        logger.info(f"PPT generation successful. File: {file_name}, Download URL: {download_url}")
+        return PPTGenerationInfoResponse(
+            message="PPT generated successfully. Use the download URL.",
+            file_name=file_name,
+            download_url=download_url
+        )
+    except HTTPException: 
+        raise
+    except Exception as e: 
+        logger.error(f"An unexpected error occurred in /generate-ppt/ endpoint: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="An internal server error occurred while generating the presentation.")
+
+@app.get("/download/{file_name}")
+async def download_ppt_file(file_name: str):
+    if ".." in file_name or "/" in file_name or "\\" in file_name:
+        raise HTTPException(status_code=400, detail="Invalid filename.")
+    file_path = os.path.join(PPT_OUTPUT_DIR, file_name)
+    if os.path.exists(file_path) and os.path.isfile(file_path):
+        return FileResponse(
+            path=file_path,
+            filename=file_name,
+            media_type='application/vnd.openxmlformats-officedocument.presentationml.presentation'
+        )
+    else:
+        logger.warning(f"Download request for non-existent or invalid file: {file_name} at path {file_path}")
+        raise HTTPException(status_code=404, detail="File not found. It may have been cleaned up or the filename is incorrect.")
+
+@app.get("/")
+async def root_path(): 
+    return {"message": "Text-to-PPT Generator API is running. Access /docs for API documentation."}
+
+if __name__ == "__main__":
+    if 'AI_SDK_CONFIGURED' in globals() and not AI_SDK_CONFIGURED:
+         print("\nWARNING: Google AI SDK is not configured. AI-dependent features will fail. "
+               "Check GOOGLE_API_KEY in your environment or .env file.\n", file=sys.stderr)
+    elif 'AI_SDK_CONFIGURED' not in globals():
+        print("\nWARNING: AI_SDK_CONFIGURED flag not found. AI service status unknown.\n", file=sys.stderr)
+
+    port = int(os.getenv("PORT", 8000))
+    logger.info(f"Starting Uvicorn server programmatically on http://0.0.0.0:{port}")
+    uvicorn.run(app, host="0.0.0.0", port=port) # Changed from "main:app" to just `app`
