@@ -78,6 +78,7 @@ async def generate_ppt_endpoint(request_data: TextToPPTRequest, background_tasks
     APPLY_STYLING_IN_PPT = True 
     logger.info(f"Received /generate-ppt/. Text len: {len(request_data.text_input)}, "
                 f"Slides: {request_data.num_slides}, Styling: {APPLY_STYLING_IN_PPT}")
+    logger.info(f"Received text input (first 100 chars): {request_data.text_input[:100]}")
     
     try:
         prompt_for_ai = construct_text_to_slide_prompt(
@@ -85,7 +86,7 @@ async def generate_ppt_endpoint(request_data: TextToPPTRequest, background_tasks
             request_data.num_slides or 5
         )
         raw_slide_content_json = await call_google_ai_for_ppt_content(prompt_for_ai)
-        logger.debug(f"Raw AI output (first 500 chars): {raw_slide_content_json[:500]}...")
+        logger.info(f"Raw AI JSON response (first 500 chars): {raw_slide_content_json[:500]}")
         try:
             cleaned_json = raw_slide_content_json.strip()
             if cleaned_json.startswith("```json"): cleaned_json = cleaned_json[len("```json"):].strip()
@@ -100,6 +101,11 @@ async def generate_ppt_endpoint(request_data: TextToPPTRequest, background_tasks
 
             slide_data_list: List[Dict[str, Any]] = parsed_ai_response.get("slides", [])
             theme_suggestions_list: List[str] = parsed_ai_response.get("theme_suggestions", [])
+
+            logger.info(f"Extracted slide data count: {len(slide_data_list)}")
+            logger.info(f"Extracted theme suggestions: {theme_suggestions_list}")
+            logger.debug(f"Full extracted slide_data_list: {slide_data_list}")
+            logger.debug(f"Full parsed_ai_response: {parsed_ai_response}")
 
             # Validation
             if not isinstance(slide_data_list, list) or \

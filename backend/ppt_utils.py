@@ -65,8 +65,9 @@ def _apply_slide_background(slide, background_style: Dict):
     """Internal helper to apply a background style (solid or gradient) to a slide."""
     try:
         fill = slide.background.fill
+        logger.info(f"Applying background style: {background_style}") # Generic log for any style
         if isinstance(background_style, dict) and background_style.get("type") == "gradient":
-            logger.debug(f"Applying gradient background: {background_style}")
+            # logger.debug(f"Applying gradient background: {background_style}") # Made redundant by above info log
             fill.gradient()
             # Ensure color1 and color2 exist
             color1_hex = background_style.get("color1")
@@ -103,9 +104,10 @@ def _apply_slide_background(slide, background_style: Dict):
             # For now, this explicit first/last stop setting should improve clarity.
 
             fill.gradient_angle = background_style.get("angle", 0)
-            logger.debug(f"Gradient applied to stops 0 and -1 with angle {fill.gradient_angle}")
+            logger.debug(f"Gradient applied to stops 0 and -1 with angle {fill.gradient_angle}") # This is specific to gradient, so keep as debug
         elif isinstance(background_style, str): # Fallback for old solid color string
-            logger.debug(f"Applying solid background with hex: {background_style}")
+            logger.info(f"Applying solid background with hex: {background_style}") # Explicitly log solid fill at info level
+            # logger.debug(f"Applying solid background with hex: {background_style}") # Old debug log, changed to info
             fill.solid()
             fill.fore_color.rgb = RGBColor.from_string(background_style)
         else: # Fallback for unexpected background_style format
@@ -135,23 +137,28 @@ def create_presentation_from_data(
     """
     # if image_paths is None: image_paths = {}
 
-    logger.info(f"Starting PPT creation for {len(slide_data_list)} slides. Styles enabled: {apply_styles}. Theme suggestions: {theme_suggestions}")
+    logger.info(f"Starting PPT creation for {len(slide_data_list)} slides. Styles enabled: {apply_styles}. Initial theme suggestions: {theme_suggestions}") # Modified this line
+    logger.info(f"PPT Creation: Received theme suggestions: {theme_suggestions}")
     
     selected_theme_name = DEFAULT_THEME_NAME
     if apply_styles and theme_suggestions:
         for theme_name in theme_suggestions:
             if theme_name in THEME_STYLES:
                 selected_theme_name = theme_name
-                logger.info(f"Using theme: {selected_theme_name}")
+                # logger.info(f"Using theme: {selected_theme_name}") # This specific log is now covered by the one below
                 break
         else: # No break
-            logger.info(f"None of the suggested themes {theme_suggestions} found. Using default theme: {DEFAULT_THEME_NAME}")
+            logger.info(f"None of the suggested themes {theme_suggestions} found. Using default theme: {DEFAULT_THEME_NAME}") # Keep this log
     elif not apply_styles:
          logger.info("Styling is disabled. Presentation will have default PPTX styles.")
     else: # apply_styles is True but no theme_suggestions
-        logger.info(f"No theme suggestions provided. Using default theme: {DEFAULT_THEME_NAME}")
+        logger.info(f"No theme suggestions provided. Using default theme: {DEFAULT_THEME_NAME}") # Keep this log
+    
+    logger.info(f"PPT Creation: Selected theme name: {selected_theme_name}")
         
     current_style = THEME_STYLES[selected_theme_name] if apply_styles else THEME_STYLES[DEFAULT_THEME_NAME] # Fallback for safety if apply_styles is false but we try to use parts of current_style
+    logger.info(f"PPT Creation: Using background style: {current_style['colors']['background']}")
+    logger.debug(f"PPT Creation: Full current_style being used: {current_style}")
     
     prs = Presentation()
     os.makedirs(PPT_OUTPUT_DIR, exist_ok=True)
