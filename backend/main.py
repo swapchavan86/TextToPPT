@@ -90,6 +90,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+logger.info(f"CORS: Allowing origins: {EFFECTIVE_ORIGINS}")
 
 # --- Background Task for Cleanup ---
 def cleanup_file_task(file_path: str, delay_seconds: int = 600):
