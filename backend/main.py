@@ -35,9 +35,48 @@ from .ppt_utils import (
 )
 
 # --- Logging Setup ---
-logging.basicConfig(level=os.getenv("LOG_LEVEL", "INFO").upper(), 
-                    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+# Define log directory (project_root/logs)
+LOG_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "logs")
+
+# Ensure log directory exists
+if not os.path.exists(LOG_DIR):
+    try:
+        os.makedirs(LOG_DIR)
+    except OSError as e:
+        print(f"Error creating log directory {LOG_DIR}: {e}", file=sys.stderr)
+        # If directory creation fails, we might want to disable file logging or handle it
+        # For now, the check below for os.path.exists(LOG_DIR) will handle disabling.
+
+LOG_FILE = os.path.join(LOG_DIR, "app.log")
+log_level_str = os.getenv("LOG_LEVEL", "INFO").upper()
+
+# Configure Root Logger
+logger_root = logging.getLogger()  # Get the root logger
+logger_root.setLevel(log_level_str) # Set root logger level
+
+# Remove any existing handlers from the root logger to avoid duplicates
+# This is important if this setup code could be run multiple times (e.g., in tests or reloads)
+for handler in logger_root.handlers[:]:
+    logger_root.removeHandler(handler)
+
+# File Handler
+if os.path.exists(LOG_DIR) and os.path.isdir(LOG_DIR):
+    file_handler = logging.FileHandler(LOG_FILE, mode='a')  # Append mode
+    file_handler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
+    logger_root.addHandler(file_handler)
+else:
+    print(f"Warning: Log directory {LOG_DIR} not found or not a directory. File logging disabled.", file=sys.stderr)
+
+# Stream Handler (for console)
+stream_handler = logging.StreamHandler(sys.stdout) # Explicitly use sys.stdout
+stream_handler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
+logger_root.addHandler(stream_handler)
+
+# The old logging.basicConfig(...) is effectively replaced by the above setup.
+
+# Local logger for this file, inherits from root logger settings
 logger = logging.getLogger(__name__)
+logger.info("File and Stream logging initialized by root logger setup.") # Test message
 
 
 # --- FastAPI App Initialization ---
@@ -51,6 +90,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+logger.info(f"CORS: Allowing origins: {EFFECTIVE_ORIGINS}")
 
 # --- Background Task for Cleanup ---
 def cleanup_file_task(file_path: str, delay_seconds: int = 600):
@@ -78,6 +118,7 @@ async def generate_ppt_endpoint(request_data: TextToPPTRequest, background_tasks
     APPLY_STYLING_IN_PPT = True 
     logger.info(f"Received /generate-ppt/. Text len: {len(request_data.text_input)}, "
                 f"Slides: {request_data.num_slides}, Styling: {APPLY_STYLING_IN_PPT}")
+    logger.info(f"Received text input (first 100 chars): {request_data.text_input[:100]}")
     
     try:
         prompt_for_ai = construct_text_to_slide_prompt(
@@ -85,20 +126,41 @@ async def generate_ppt_endpoint(request_data: TextToPPTRequest, background_tasks
             request_data.num_slides or 5
         )
         raw_slide_content_json = await call_google_ai_for_ppt_content(prompt_for_ai)
-        logger.debug(f"Raw AI output (first 500 chars): {raw_slide_content_json[:500]}...")
+        logger.info(f"Raw AI JSON response (first 500 chars): {raw_slide_content_json[:500]}")
         try:
             cleaned_json = raw_slide_content_json.strip()
             if cleaned_json.startswith("```json"): cleaned_json = cleaned_json[len("```json"):].strip()
             elif cleaned_json.startswith("```"): cleaned_json = cleaned_json[len("```"):].strip()
             if cleaned_json.endswith("```"): cleaned_json = cleaned_json[:-len("```")].strip()
             
-            slide_data_list: List[Dict[str, Any]] = json.loads(cleaned_json)
+            parsed_ai_response: Dict[str, Any] = json.loads(cleaned_json)
 
+            if not isinstance(parsed_ai_response, dict):
+                logger.error(f"AI output was not a dictionary as expected. Type: {type(parsed_ai_response)}. Content: {cleaned_json[:300]}")
+                raise HTTPException(status_code=500, detail="AI service returned improperly structured data (expected a JSON object).")
+
+            slide_data_list: List[Dict[str, Any]] = parsed_ai_response.get("slides", [])
+            theme_suggestions_list: List[str] = parsed_ai_response.get("theme_suggestions", [])
+
+            logger.info(f"Extracted slide data count: {len(slide_data_list)}")
+            logger.info(f"Extracted theme suggestions: {theme_suggestions_list}")
+            logger.debug(f"Full extracted slide_data_list: {slide_data_list}")
+            logger.debug(f"Full parsed_ai_response: {parsed_ai_response}")
+
+            # Validation
             if not isinstance(slide_data_list, list) or \
+               not isinstance(theme_suggestions_list, list) or \
                not all(isinstance(item, dict) for item in slide_data_list) or \
-               not slide_data_list: 
-                logger.error(f"AI output was not a non-empty list of dictionaries. Type: {type(slide_data_list)}. Content: {cleaned_json[:200]}")
-                raise HTTPException(status_code=500, detail="AI service returned improperly structured data.")
+               not all(isinstance(item, str) for item in theme_suggestions_list):
+                logger.error(f"AI output structure is incorrect. 'slides' must be a list of dicts, 'theme_suggestions' must be a list of strings. "
+                             f"Got slides type: {type(slide_data_list)}, themes type: {type(theme_suggestions_list)}. Content: {cleaned_json[:300]}")
+                raise HTTPException(status_code=500, detail="AI service returned improperly structured data (slides or themes are not lists).")
+
+            if not slide_data_list: # Check if slides list is empty, which might be an error or intended
+                logger.warning(f"AI output's 'slides' list is empty. Content: {cleaned_json[:300]}")
+                # Depending on requirements, you might raise an error here if slides are always expected
+                # For now, we allow empty slide lists to proceed to create_presentation_from_data
+
         except json.JSONDecodeError as e:
             logger.error(f"Failed to parse JSON from AI: {e}. Raw content: {raw_slide_content_json[:500]}...")
             raise HTTPException(status_code=500, detail="AI service returned invalid JSON content.")
@@ -107,7 +169,8 @@ async def generate_ppt_endpoint(request_data: TextToPPTRequest, background_tasks
             create_presentation_from_data,
             slide_data_list,
             "presentation",
-            APPLY_STYLING_IN_PPT
+            APPLY_STYLING_IN_PPT,
+            theme_suggestions=theme_suggestions_list # Added this
         )
         background_tasks.add_task(cleanup_file_task, ppt_file_path)
         file_name = os.path.basename(ppt_file_path)

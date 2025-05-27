@@ -36,6 +36,146 @@ PROFESSIONAL_COLORS_HEX = {
 PROFESSIONAL_FONT_NAMES = ["Calibri", "Arial", "Tahoma", "Verdana"]
 SUBTLE_BACKGROUND_COLORS_HEX = ["F0F8FF", "F5F5F5", "FAF0E6", "E6E6FA", "FFF0F5"]
 
+THEME_STYLES = {
+    "technology": {
+        "colors": {
+            "primary": "003366",    # Dark blue
+            "secondary": "0072C6",  # Medium blue
+            "accent": "66B2FF",     # Light blue
+            "background": {"type": "gradient", "color1": "E0E8F0", "color2": "F0F8FF", "angle": 45}, # Original: F0F8FF
+            "text": "333333"         # Dark grey
+        },
+        "font": "Arial"
+    },
+    "nature": {
+        "colors": {
+            "primary": "228B22",    # Forest green
+            "secondary": "3CB371",  # Medium sea green
+            "accent": "90EE90",     # Light green
+            "background": {"type": "gradient", "color1": "E6F5E6", "color2": "F0FFF0", "angle": 45}, # Original: F0FFF0
+            "text": "2F4F2F"         # Dark slate gray
+        },
+        "font": "Verdana"
+    },
+    "business": {
+        "colors": {
+            "primary": "404040",    # Dark grey
+            "secondary": "808080",  # Grey
+            "accent": "D3D3D3",     # Light grey
+            "background": {"type": "gradient", "color1": "E8E8E8", "color2": "F5F5F5", "angle": 45}, # Original: F5F5F5
+            "text": "000000"         # Black
+        },
+        "font": "Calibri"
+    },
+    "education": {
+        "colors": {
+            "primary": "FF8C00",    # Dark orange
+            "secondary": "FFA500",  # Orange
+            "accent": "FFD700",     # Gold
+            "background": {"type": "gradient", "color1": "FFF5E0", "color2": "FFF8DC", "angle": 45}, # Original: FFF8DC
+            "text": "542C06"         # Dark Brown
+        },
+        "font": "Tahoma"
+    },
+    "default": { # Fallback theme
+        "colors": {
+            "primary": "bdc3c7",    # Silver (for titles)
+            "secondary": "3498db",  # Peter River blue (accent1)
+            "accent": "2980b9",     # Belize Hole blue (accent2)
+            "background": {"type": "gradient", "color1": "2c3e50", "color2": "485a6d", "angle": 45}, # Original: 2c3e50
+            "text": "ecf0f1"         # Light Grey / Off-white (for body text)
+        },
+        "font": "Calibri"
+    },
+    "professional_dark": {
+        "colors": {
+            "primary": "007bff",
+            "secondary": "6c757d",
+            "accent": "17a2b8",
+            "background": {"type": "gradient", "color1": "343a40", "color2": "495057", "angle": 45},
+            "text": "f8f9fa"
+        },
+        "font": "Lato"
+    },
+    "creative_light": {
+        "colors": {
+            "primary": "ff4081",
+            "secondary": "7c4dff",
+            "accent": "00bfa5",
+            "background": {"type": "gradient", "color1": "e0f7fa", "color2": "b2ebf2", "angle": 45},
+            "text": "263238"
+        },
+        "font": "Montserrat"
+    },
+    "elegant_dark": {
+        "colors": {
+            "primary": "d4af37", # Gold
+            "secondary": "800020", # Burgundy
+            "accent": "50C878", # Emerald green
+            "background": {"type": "gradient", "color1": "2c2c2c", "color2": "3e3e3e", "angle": 45},
+            "text": "e8e6e3"
+        },
+        "font": "Garamond"
+    },
+    "serene_light": {
+        "colors": {
+            "primary": "3f51b5", # Indigo
+            "secondary": "81c784", # Soft green
+            "accent": "ffb74d", # Soft orange
+            "background": {"type": "gradient", "color1": "e6f2ff", "color2": "d0e0ff", "angle": 45},
+            "text": "37474f"
+        },
+        "font": "Open Sans"
+    },
+    "vibrant_dark": {
+        "colors": {
+            "primary": "00ffdd", # Bright cyan/turquoise
+            "secondary": "ff00ff", # Magenta
+            "accent": "a020f0", # Purple
+            "background": {"type": "gradient", "color1": "1f1c2c", "color2": "2a283e", "angle": 45},
+            "text": "e0e0e0"
+        },
+        "font": "Roboto"
+    }
+}
+
+THEME_KEYWORD_ALIASES = {
+    "technology": [
+        "ai", "artificial intelligence", "tech", "innovation", "digital", 
+        "software", "computer", "robotics", "automation", "future tech",
+        "advancements", "transformation", "singularity", "algorithm"
+    ],
+    "nature": [
+        "environment", "eco", "green", "forest", "outdoors", "wildlife", 
+        "sustainability", "conservation", "planet", "earth", "natural"
+    ],
+    "business": [
+        "finance", "corporate", "company", "market", "economic", "investment",
+        "strategy", "management", "entrepreneur", "commerce", "industry", "reports"
+    ],
+    "education": [
+        "learning", "school", "university", "academic", "study", "teaching",
+        "knowledge", "curriculum", "student", "pedagogy"
+    ],
+    "professional_dark": [
+        "professional", "corporate dark", "formal dark", "general dark", "serious business"
+    ],
+    "creative_light": [
+        "creative", "design", "art", "modern", "vibrant light", "marketing", "innovative design"
+    ],
+    "elegant_dark": [
+        "elegant", "luxury", "formal", "sophisticated", "premium", "classic dark", "high end"
+    ],
+    "serene_light": [
+        "serene", "calm", "peaceful", "wellness", "health", "mindfulness", "thoughtful", "meditation", "well-being"
+    ],
+    "vibrant_dark": [
+        "vibrant dark", "energetic dark", "modern dark", "neon accents", "dynamic dark", "club", "party"
+    ]
+    # Add other main themes here if they exist and need aliases,
+    # but not for "default" as it's a fallback.
+}
+
 # --- Application Settings ---
 PPT_OUTPUT_DIR = "generated_files"
 PLACEHOLDER_IMAGE_DIR_NAME = "placeholders" # Relative to PPT_OUTPUT_DIR
