@@ -86,6 +86,56 @@ THEME_STYLES = {
             "text": "ecf0f1"         # Light Grey / Off-white (for body text)
         },
         "font": "Calibri"
+    },
+    "professional_dark": {
+        "colors": {
+            "primary": "007bff",
+            "secondary": "6c757d",
+            "accent": "17a2b8",
+            "background": {"type": "gradient", "color1": "343a40", "color2": "495057", "angle": 45},
+            "text": "f8f9fa"
+        },
+        "font": "Lato"
+    },
+    "creative_light": {
+        "colors": {
+            "primary": "ff4081",
+            "secondary": "7c4dff",
+            "accent": "00bfa5",
+            "background": {"type": "gradient", "color1": "e0f7fa", "color2": "b2ebf2", "angle": 45},
+            "text": "263238"
+        },
+        "font": "Montserrat"
+    },
+    "elegant_dark": {
+        "colors": {
+            "primary": "d4af37", # Gold
+            "secondary": "800020", # Burgundy
+            "accent": "50C878", # Emerald green
+            "background": {"type": "gradient", "color1": "2c2c2c", "color2": "3e3e3e", "angle": 45},
+            "text": "e8e6e3"
+        },
+        "font": "Garamond"
+    },
+    "serene_light": {
+        "colors": {
+            "primary": "3f51b5", # Indigo
+            "secondary": "81c784", # Soft green
+            "accent": "ffb74d", # Soft orange
+            "background": {"type": "gradient", "color1": "e6f2ff", "color2": "d0e0ff", "angle": 45},
+            "text": "37474f"
+        },
+        "font": "Open Sans"
+    },
+    "vibrant_dark": {
+        "colors": {
+            "primary": "00ffdd", # Bright cyan/turquoise
+            "secondary": "ff00ff", # Magenta
+            "accent": "a020f0", # Purple
+            "background": {"type": "gradient", "color1": "1f1c2c", "color2": "2a283e", "angle": 45},
+            "text": "e0e0e0"
+        },
+        "font": "Roboto"
     }
 }
 
@@ -106,6 +156,21 @@ THEME_KEYWORD_ALIASES = {
     "education": [
         "learning", "school", "university", "academic", "study", "teaching",
         "knowledge", "curriculum", "student", "pedagogy"
+    ],
+    "professional_dark": [
+        "professional", "corporate dark", "formal dark", "general dark", "serious business"
+    ],
+    "creative_light": [
+        "creative", "design", "art", "modern", "vibrant light", "marketing", "innovative design"
+    ],
+    "elegant_dark": [
+        "elegant", "luxury", "formal", "sophisticated", "premium", "classic dark", "high end"
+    ],
+    "serene_light": [
+        "serene", "calm", "peaceful", "wellness", "health", "mindfulness", "thoughtful", "meditation", "well-being"
+    ],
+    "vibrant_dark": [
+        "vibrant dark", "energetic dark", "modern dark", "neon accents", "dynamic dark", "club", "party"
     ]
     # Add other main themes here if they exist and need aliases,
     # but not for "default" as it's a fallback.
