@@ -141,19 +141,29 @@ def create_presentation_from_data(
     logger.info(f"PPT Creation: Received theme suggestions: {theme_suggestions}")
     
     selected_theme_name = DEFAULT_THEME_NAME
+    theme_found_by_keyword = False
     if apply_styles and theme_suggestions:
-        for theme_name in theme_suggestions:
-            if theme_name in THEME_STYLES:
-                selected_theme_name = theme_name
-                # logger.info(f"Using theme: {selected_theme_name}") # This specific log is now covered by the one below
-                break
-        else: # No break
-            logger.info(f"None of the suggested themes {theme_suggestions} found. Using default theme: {DEFAULT_THEME_NAME}") # Keep this log
+        for suggestion in theme_suggestions:
+            suggestion_lower = suggestion.lower() # Convert suggestion to lowercase
+            for theme_key in THEME_STYLES.keys():
+                if theme_key == DEFAULT_THEME_NAME: # Skip matching with 'default' key directly as keyword
+                    continue
+                if theme_key.lower() in suggestion_lower: # Check if our theme_key is a substring
+                    selected_theme_name = theme_key
+                    theme_found_by_keyword = True
+                    logger.info(f"Keyword '{theme_key}' matched in AI suggestion '{suggestion}'. Using theme: {selected_theme_name}")
+                    break # Found a theme, break from inner loop (theme_key loop)
+            if theme_found_by_keyword:
+                break # Found a theme, break from outer loop (suggestion loop)
+        
+        if not theme_found_by_keyword:
+            logger.info(f"No keywords from THEME_STYLES found in AI suggestions {theme_suggestions}. Using default theme: {DEFAULT_THEME_NAME}")
     elif not apply_styles:
          logger.info("Styling is disabled. Presentation will have default PPTX styles.")
     else: # apply_styles is True but no theme_suggestions
         logger.info(f"No theme suggestions provided. Using default theme: {DEFAULT_THEME_NAME}") # Keep this log
     
+    # The existing log: logger.info(f"PPT Creation: Selected theme name: {selected_theme_name}") will still run after this block.
     logger.info(f"PPT Creation: Selected theme name: {selected_theme_name}")
         
     current_style = THEME_STYLES[selected_theme_name] if apply_styles else THEME_STYLES[DEFAULT_THEME_NAME] # Fallback for safety if apply_styles is false but we try to use parts of current_style
