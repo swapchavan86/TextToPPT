@@ -42,7 +42,7 @@ THEME_STYLES = {
             "primary": "003366",    # Dark blue
             "secondary": "0072C6",  # Medium blue
             "accent": "66B2FF",     # Light blue
-            "background": "F0F8FF", # Alice blue
+            "background": {"type": "gradient", "color1": "E0E8F0", "color2": "F0F8FF", "angle": 45}, # Original: F0F8FF
             "text": "333333"         # Dark grey
         },
         "font": "Arial"
@@ -52,7 +52,7 @@ THEME_STYLES = {
             "primary": "228B22",    # Forest green
             "secondary": "3CB371",  # Medium sea green
             "accent": "90EE90",     # Light green
-            "background": "F0FFF0", # Honeydew
+            "background": {"type": "gradient", "color1": "E6F5E6", "color2": "F0FFF0", "angle": 45}, # Original: F0FFF0
             "text": "2F4F2F"         # Dark slate gray
         },
         "font": "Verdana"
@@ -62,7 +62,7 @@ THEME_STYLES = {
             "primary": "404040",    # Dark grey
             "secondary": "808080",  # Grey
             "accent": "D3D3D3",     # Light grey
-            "background": "F5F5F5", # White smoke
+            "background": {"type": "gradient", "color1": "E8E8E8", "color2": "F5F5F5", "angle": 45}, # Original: F5F5F5
             "text": "000000"         # Black
         },
         "font": "Calibri"
@@ -72,7 +72,7 @@ THEME_STYLES = {
             "primary": "FF8C00",    # Dark orange
             "secondary": "FFA500",  # Orange
             "accent": "FFD700",     # Gold
-            "background": "FFF8DC", # Cornsilk
+            "background": {"type": "gradient", "color1": "FFF5E0", "color2": "FFF8DC", "angle": 45}, # Original: FFF8DC
             "text": "542C06"         # Dark Brown
         },
         "font": "Tahoma"
@@ -82,7 +82,7 @@ THEME_STYLES = {
             "primary": "bdc3c7",    # Silver (for titles)
             "secondary": "3498db",  # Peter River blue (accent1)
             "accent": "2980b9",     # Belize Hole blue (accent2)
-            "background": "2c3e50", # Midnight Blue / Dark Slate Grey
+            "background": {"type": "gradient", "color1": "2c3e50", "color2": "34495e", "angle": 45}, # Original: 2c3e50
             "text": "ecf0f1"         # Light Grey / Off-white (for body text)
         },
         "font": "Calibri"

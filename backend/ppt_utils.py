@@ -61,14 +61,61 @@ def _style_text_shape(shape_object, current_style: Dict[str, Any], is_title_styl
         _apply_run_style(run, font_name, font_size_pt, font_color_hex, is_bold)
 
 
-def _apply_slide_background(slide, background_color_hex: str):
-    """Internal helper to apply a specific background color to a slide."""
+def _apply_slide_background(slide, background_style: Dict):
+    """Internal helper to apply a background style (solid or gradient) to a slide."""
     try:
         fill = slide.background.fill
-        fill.solid()
-        fill.fore_color.rgb = RGBColor.from_string(background_color_hex)
+        if isinstance(background_style, dict) and background_style.get("type") == "gradient":
+            logger.debug(f"Applying gradient background: {background_style}")
+            fill.gradient()
+            if len(fill.gradient_stops) < 2: # Ensure there are enough stops
+                # This might not be strictly necessary if python-pptx always creates them,
+                # but it's a safeguard. Add more if needed.
+                pass # python-pptx usually initializes with a default number of stops
+            
+            # Ensure color1 and color2 exist
+            color1_hex = background_style.get("color1")
+            color2_hex = background_style.get("color2")
+
+            if not color1_hex or not color2_hex:
+                logger.error(f"Gradient background style is missing color1 or color2: {background_style}")
+                # Fallback to a default solid color or do nothing
+                fill.solid()
+                fill.fore_color.rgb = RGBColor.from_string("C0C0C0") # Default silver
+                return
+
+            fill.gradient_stops[0].color.rgb = RGBColor.from_string(color1_hex)
+            # If only two colors are defined for a simple two-point gradient:
+            # python-pptx might by default use more than 2 stops.
+            # For a simple 2-color gradient, you typically define the first and last stop.
+            # If the default gradient has >2 stops, you might want to set them all or simplify.
+            # Here, we assume a simple 2-color gradient by setting stop[0] and stop[1] (or last stop).
+            # For simplicity, we set stop[0] and stop[1] if they exist.
+            # If there are more stops, their default colors might be used unless also set.
+            if len(fill.gradient_stops) > 1:
+                 fill.gradient_stops[1].color.rgb = RGBColor.from_string(color2_hex)
+            else: # Should not happen if gradient() initializes correctly
+                 fill.gradient_stops[0].color.rgb = RGBColor.from_string(color2_hex) # Fallback for stop 1 if only one stop exists
+
+            fill.gradient_angle = background_style.get("angle", 0)
+            logger.debug(f"Gradient applied with angle {fill.gradient_angle}")
+        elif isinstance(background_style, str): # Fallback for old solid color string
+            logger.debug(f"Applying solid background with hex: {background_style}")
+            fill.solid()
+            fill.fore_color.rgb = RGBColor.from_string(background_style)
+        else: # Fallback for unexpected background_style format
+            logger.warning(f"Unknown background_style format: {background_style}. Applying default solid background.")
+            fill.solid()
+            fill.fore_color.rgb = RGBColor.from_string("C0C0C0") # Default silver
     except Exception as e:
-        logger.warning(f"Could not set slide background with color {background_color_hex}: {e}")
+        logger.error(f"Could not set slide background with style {background_style}: {e}", exc_info=True)
+        # Optionally, apply a very basic fallback background
+        try:
+            fill = slide.background.fill
+            fill.solid()
+            fill.fore_color.rgb = RGBColor.from_string("D3D3D3") # Light gray fallback
+        except Exception as fallback_e:
+            logger.error(f"Failed to apply even basic fallback background: {fallback_e}")
 
 def create_presentation_from_data(
     slide_data_list: List[Dict[str, Any]],
