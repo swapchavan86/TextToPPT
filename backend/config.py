@@ -36,6 +36,59 @@ PROFESSIONAL_COLORS_HEX = {
 PROFESSIONAL_FONT_NAMES = ["Calibri", "Arial", "Tahoma", "Verdana"]
 SUBTLE_BACKGROUND_COLORS_HEX = ["F0F8FF", "F5F5F5", "FAF0E6", "E6E6FA", "FFF0F5"]
 
+THEME_STYLES = {
+    "technology": {
+        "colors": {
+            "primary": "003366",    # Dark blue
+            "secondary": "0072C6",  # Medium blue
+            "accent": "66B2FF",     # Light blue
+            "background": "F0F8FF", # Alice blue
+            "text": "333333"         # Dark grey
+        },
+        "font": "Arial"
+    },
+    "nature": {
+        "colors": {
+            "primary": "228B22",    # Forest green
+            "secondary": "3CB371",  # Medium sea green
+            "accent": "90EE90",     # Light green
+            "background": "F0FFF0", # Honeydew
+            "text": "2F4F2F"         # Dark slate gray
+        },
+        "font": "Verdana"
+    },
+    "business": {
+        "colors": {
+            "primary": "404040",    # Dark grey
+            "secondary": "808080",  # Grey
+            "accent": "D3D3D3",     # Light grey
+            "background": "F5F5F5", # White smoke
+            "text": "000000"         # Black
+        },
+        "font": "Calibri"
+    },
+    "education": {
+        "colors": {
+            "primary": "FF8C00",    # Dark orange
+            "secondary": "FFA500",  # Orange
+            "accent": "FFD700",     # Gold
+            "background": "FFF8DC", # Cornsilk
+            "text": "542C06"         # Dark Brown
+        },
+        "font": "Tahoma"
+    },
+    "default": { # Fallback theme
+        "colors": {
+            "primary": "003366",
+            "secondary": "0072C6",
+            "accent": "66B2FF",
+            "background": "FFFFFF", # White
+            "text": "333333"
+        },
+        "font": "Calibri"
+    }
+}
+
 # --- Application Settings ---
 PPT_OUTPUT_DIR = "generated_files"
 PLACEHOLDER_IMAGE_DIR_NAME = "placeholders" # Relative to PPT_OUTPUT_DIR

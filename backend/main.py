@@ -92,13 +92,29 @@ async def generate_ppt_endpoint(request_data: TextToPPTRequest, background_tasks
             elif cleaned_json.startswith("```"): cleaned_json = cleaned_json[len("```"):].strip()
             if cleaned_json.endswith("```"): cleaned_json = cleaned_json[:-len("```")].strip()
             
-            slide_data_list: List[Dict[str, Any]] = json.loads(cleaned_json)
+            parsed_ai_response: Dict[str, Any] = json.loads(cleaned_json)
 
+            if not isinstance(parsed_ai_response, dict):
+                logger.error(f"AI output was not a dictionary as expected. Type: {type(parsed_ai_response)}. Content: {cleaned_json[:300]}")
+                raise HTTPException(status_code=500, detail="AI service returned improperly structured data (expected a JSON object).")
+
+            slide_data_list: List[Dict[str, Any]] = parsed_ai_response.get("slides", [])
+            theme_suggestions_list: List[str] = parsed_ai_response.get("theme_suggestions", [])
+
+            # Validation
             if not isinstance(slide_data_list, list) or \
+               not isinstance(theme_suggestions_list, list) or \
                not all(isinstance(item, dict) for item in slide_data_list) or \
-               not slide_data_list: 
-                logger.error(f"AI output was not a non-empty list of dictionaries. Type: {type(slide_data_list)}. Content: {cleaned_json[:200]}")
-                raise HTTPException(status_code=500, detail="AI service returned improperly structured data.")
+               not all(isinstance(item, str) for item in theme_suggestions_list):
+                logger.error(f"AI output structure is incorrect. 'slides' must be a list of dicts, 'theme_suggestions' must be a list of strings. "
+                             f"Got slides type: {type(slide_data_list)}, themes type: {type(theme_suggestions_list)}. Content: {cleaned_json[:300]}")
+                raise HTTPException(status_code=500, detail="AI service returned improperly structured data (slides or themes are not lists).")
+
+            if not slide_data_list: # Check if slides list is empty, which might be an error or intended
+                logger.warning(f"AI output's 'slides' list is empty. Content: {cleaned_json[:300]}")
+                # Depending on requirements, you might raise an error here if slides are always expected
+                # For now, we allow empty slide lists to proceed to create_presentation_from_data
+
         except json.JSONDecodeError as e:
             logger.error(f"Failed to parse JSON from AI: {e}. Raw content: {raw_slide_content_json[:500]}...")
             raise HTTPException(status_code=500, detail="AI service returned invalid JSON content.")
@@ -107,7 +123,8 @@ async def generate_ppt_endpoint(request_data: TextToPPTRequest, background_tasks
             create_presentation_from_data,
             slide_data_list,
             "presentation",
-            APPLY_STYLING_IN_PPT
+            APPLY_STYLING_IN_PPT,
+            theme_suggestions=theme_suggestions_list # Added this
         )
         background_tasks.add_task(cleanup_file_task, ppt_file_path)
         file_name = os.path.basename(ppt_file_path)

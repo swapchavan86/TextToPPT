@@ -39,20 +39,24 @@ def construct_text_to_slide_prompt(text_input: str, num_slides: int, desired_ton
     #     image_example_field = ', "image_keywords": "technology, future"'
 
     return f"""
-    You are an expert presentation designer. Your goal is to transform the following raw text into a structured, engaging, and {desired_tone} PowerPoint presentation outline.
+    You are an expert presentation designer. Your goal is to transform the following raw text into a structured, engaging, and {desired_tone} PowerPoint presentation outline, and also suggest relevant themes.
 
     Instructions:
-    1. Generate content for approximately {num_slides} main content slides.
-    2. Create a clear title slide as the first item in the JSON list. Its 'title' should be the presentation title, and 'points' can be a short subtitle (e.g., ["A brief overview"]) or an empty list.
-    3. For each subsequent content slide, provide a concise 'title' and a list of 3 to 5 key 'points'.{image_instruction}
-    4. The entire output MUST be a valid JSON list of objects. Each object represents one slide.
-    5. Only output the JSON list. Do not include any conversational text or explanations.
+    1. Analyze the input text and suggest 1 to 3 overall themes or keywords for the presentation. These should be returned under the 'theme_suggestions' key as a list of strings.
+    2. Generate content for approximately {num_slides} main content slides. This slide data should be a list of objects under the 'slides' key.
+    3. Create a clear title slide as the first item in the 'slides' list. Its 'title' should be the presentation title, and 'points' can be a short subtitle (e.g., ["A brief overview"]) or an empty list.
+    4. For each subsequent content slide in the 'slides' list, provide a concise 'title' and a list of 3 to 5 key 'points'.{image_instruction}
+    5. The entire output MUST be a single valid JSON object with two top-level keys: "theme_suggestions" and "slides".
+    6. Only output the JSON object. Do not include any conversational text or explanations.
 
-    Example of a content slide object:
-    {{"title": "Example Slide Title", "points": ["Key takeaway 1", "Detail A"]{image_example_field}}}
-    
-    Example of a title slide object:
-    {{"title": "The Impact of AI", "points": ["Exploring new frontiers"]}}
+    Example of the JSON output structure:
+    {{
+      "theme_suggestions": ["technology", "innovation", "futurism"],
+      "slides": [
+        {{"title": "The Impact of AI", "points": ["Exploring new frontiers"]}},
+        {{"title": "Example Slide Title", "points": ["Key takeaway 1", "Detail A"]{image_example_field}}}
+      ]
+    }}
 
     Text to analyze:
     ---
