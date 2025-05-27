@@ -152,6 +152,7 @@ def create_presentation_from_data(
             for main_theme_key, alias_list in THEME_KEYWORD_ALIASES.items():
                 if theme_found: break # If already found a theme from a previous alias check
                 for alias in alias_list:
+                    logger.debug(f"Theme Selection Check: Comparing alias '[{alias.lower()}]' (from theme '{main_theme_key}') with suggestion '[{suggestion_lower}]'")
                     if alias.lower() in suggestion_lower: # Check if an alias is in the suggestion
                         selected_theme_name = main_theme_key # Select the main theme key
                         if selected_theme_name not in THEME_STYLES:
@@ -159,8 +160,10 @@ def create_presentation_from_data(
                             selected_theme_name = DEFAULT_THEME_NAME # Fallback if alias maps to non-existent theme
                         else:
                             theme_found = True
-                            logger.info(f"Alias '{alias}' matched in AI suggestion '{suggestion}'. Using mapped theme: {selected_theme_name}")
+                            logger.info(f"Alias '[{alias.lower()}]' matched in AI suggestion '[{suggestion.lower()}]'. Using mapped theme: {selected_theme_name}") # Log lowercase alias for consistency
                         break # Found an alias match for this suggestion, move to next suggestion or finish
+                if theme_found: # Added this inner break check
+                    break
         
         if not theme_found:
             logger.info(f"No matching aliases found in AI suggestions {theme_suggestions}. Using default theme: {DEFAULT_THEME_NAME}")
