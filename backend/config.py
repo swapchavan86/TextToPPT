@@ -82,7 +82,7 @@ THEME_STYLES = {
             "primary": "bdc3c7",    # Silver (for titles)
             "secondary": "3498db",  # Peter River blue (accent1)
             "accent": "2980b9",     # Belize Hole blue (accent2)
-            "background": {"type": "gradient", "color1": "2c3e50", "color2": "34495e", "angle": 45}, # Original: 2c3e50
+            "background": {"type": "gradient", "color1": "2c3e50", "color2": "485a6d", "angle": 45}, # Original: 2c3e50
             "text": "ecf0f1"         # Light Grey / Off-white (for body text)
         },
         "font": "Calibri"

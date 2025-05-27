@@ -68,11 +68,6 @@ def _apply_slide_background(slide, background_style: Dict):
         if isinstance(background_style, dict) and background_style.get("type") == "gradient":
             logger.debug(f"Applying gradient background: {background_style}")
             fill.gradient()
-            if len(fill.gradient_stops) < 2: # Ensure there are enough stops
-                # This might not be strictly necessary if python-pptx always creates them,
-                # but it's a safeguard. Add more if needed.
-                pass # python-pptx usually initializes with a default number of stops
-            
             # Ensure color1 and color2 exist
             color1_hex = background_style.get("color1")
             color2_hex = background_style.get("color2")
@@ -84,21 +79,31 @@ def _apply_slide_background(slide, background_style: Dict):
                 fill.fore_color.rgb = RGBColor.from_string("C0C0C0") # Default silver
                 return
 
+            # Ensure at least two stops are available (python-pptx usually provides them)
+            if len(fill.gradient_stops) < 1: # Should ideally be at least 2
+                logger.error(f"Gradient stops not initialized properly for {background_style}")
+                # Fallback
+                fill.solid()
+                fill.fore_color.rgb = RGBColor.from_string("C0C0C0")
+                return
+            
+            # Set the first stop
             fill.gradient_stops[0].color.rgb = RGBColor.from_string(color1_hex)
-            # If only two colors are defined for a simple two-point gradient:
-            # python-pptx might by default use more than 2 stops.
-            # For a simple 2-color gradient, you typically define the first and last stop.
-            # If the default gradient has >2 stops, you might want to set them all or simplify.
-            # Here, we assume a simple 2-color gradient by setting stop[0] and stop[1] (or last stop).
-            # For simplicity, we set stop[0] and stop[1] if they exist.
-            # If there are more stops, their default colors might be used unless also set.
-            if len(fill.gradient_stops) > 1:
-                 fill.gradient_stops[1].color.rgb = RGBColor.from_string(color2_hex)
-            else: # Should not happen if gradient() initializes correctly
-                 fill.gradient_stops[0].color.rgb = RGBColor.from_string(color2_hex) # Fallback for stop 1 if only one stop exists
+            fill.gradient_stops[0].position = 0.0  # 0%
+
+            # Set the last stop (handles cases with 2 or more default stops)
+            # If there's only 1 stop by some error, this will also set that one stop to color2.
+            fill.gradient_stops[-1].color.rgb = RGBColor.from_string(color2_hex)
+            fill.gradient_stops[-1].position = 1.0 # 100%
+            
+            # If by default python-pptx creates more than 2 stops, 
+            # the intermediate ones will have default colors.
+            # For a clean two-color gradient, we ideally want to remove them or
+            # ensure they don't interfere.
+            # For now, this explicit first/last stop setting should improve clarity.
 
             fill.gradient_angle = background_style.get("angle", 0)
-            logger.debug(f"Gradient applied with angle {fill.gradient_angle}")
+            logger.debug(f"Gradient applied to stops 0 and -1 with angle {fill.gradient_angle}")
         elif isinstance(background_style, str): # Fallback for old solid color string
             logger.debug(f"Applying solid background with hex: {background_style}")
             fill.solid()
