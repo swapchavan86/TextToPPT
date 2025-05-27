@@ -35,9 +35,48 @@ from .ppt_utils import (
 )
 
 # --- Logging Setup ---
-logging.basicConfig(level=os.getenv("LOG_LEVEL", "INFO").upper(), 
-                    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+# Define log directory (project_root/logs)
+LOG_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "logs")
+
+# Ensure log directory exists
+if not os.path.exists(LOG_DIR):
+    try:
+        os.makedirs(LOG_DIR)
+    except OSError as e:
+        print(f"Error creating log directory {LOG_DIR}: {e}", file=sys.stderr)
+        # If directory creation fails, we might want to disable file logging or handle it
+        # For now, the check below for os.path.exists(LOG_DIR) will handle disabling.
+
+LOG_FILE = os.path.join(LOG_DIR, "app.log")
+log_level_str = os.getenv("LOG_LEVEL", "INFO").upper()
+
+# Configure Root Logger
+logger_root = logging.getLogger()  # Get the root logger
+logger_root.setLevel(log_level_str) # Set root logger level
+
+# Remove any existing handlers from the root logger to avoid duplicates
+# This is important if this setup code could be run multiple times (e.g., in tests or reloads)
+for handler in logger_root.handlers[:]:
+    logger_root.removeHandler(handler)
+
+# File Handler
+if os.path.exists(LOG_DIR) and os.path.isdir(LOG_DIR):
+    file_handler = logging.FileHandler(LOG_FILE, mode='a')  # Append mode
+    file_handler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
+    logger_root.addHandler(file_handler)
+else:
+    print(f"Warning: Log directory {LOG_DIR} not found or not a directory. File logging disabled.", file=sys.stderr)
+
+# Stream Handler (for console)
+stream_handler = logging.StreamHandler(sys.stdout) # Explicitly use sys.stdout
+stream_handler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
+logger_root.addHandler(stream_handler)
+
+# The old logging.basicConfig(...) is effectively replaced by the above setup.
+
+# Local logger for this file, inherits from root logger settings
 logger = logging.getLogger(__name__)
+logger.info("File and Stream logging initialized by root logger setup.") # Test message
 
 
 # --- FastAPI App Initialization ---
