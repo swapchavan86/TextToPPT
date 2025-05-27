@@ -11,6 +11,7 @@ from pptx.util import Pt, Inches
 
 from .config import ( # Import from local config
     THEME_STYLES, # Updated
+    THEME_KEYWORD_ALIASES, # Added
     PPT_OUTPUT_DIR
 )
 
@@ -140,28 +141,37 @@ def create_presentation_from_data(
     logger.info(f"Starting PPT creation for {len(slide_data_list)} slides. Styles enabled: {apply_styles}. Initial theme suggestions: {theme_suggestions}") # Modified this line
     logger.info(f"PPT Creation: Received theme suggestions: {theme_suggestions}")
     
-    selected_theme_name = DEFAULT_THEME_NAME
-    theme_found_by_keyword = False
+    selected_theme_name = DEFAULT_THEME_NAME # Initialize to default
+    theme_found = False # Flag to indicate if a theme has been matched
+
     if apply_styles and theme_suggestions:
-        for suggestion in theme_suggestions:
-            suggestion_lower = suggestion.lower() # Convert suggestion to lowercase
-            for theme_key in THEME_STYLES.keys():
-                if theme_key == DEFAULT_THEME_NAME: # Skip matching with 'default' key directly as keyword
-                    continue
-                if theme_key.lower() in suggestion_lower: # Check if our theme_key is a substring
-                    selected_theme_name = theme_key
-                    theme_found_by_keyword = True
-                    logger.info(f"Keyword '{theme_key}' matched in AI suggestion '{suggestion}'. Using theme: {selected_theme_name}")
-                    break # Found a theme, break from inner loop (theme_key loop)
-            if theme_found_by_keyword:
-                break # Found a theme, break from outer loop (suggestion loop)
+        for suggestion in theme_suggestions: # Iterate through AI's suggested theme phrases
+            if theme_found: break # If already found a theme, no need to check more suggestions
+            suggestion_lower = suggestion.lower()
+            
+            for main_theme_key, alias_list in THEME_KEYWORD_ALIASES.items():
+                if theme_found: break # If already found a theme from a previous alias check
+                for alias in alias_list:
+                    if alias.lower() in suggestion_lower: # Check if an alias is in the suggestion
+                        selected_theme_name = main_theme_key # Select the main theme key
+                        if selected_theme_name not in THEME_STYLES:
+                            logger.warning(f"Alias mapping points to theme key '{selected_theme_name}' not in THEME_STYLES. Using default.")
+                            selected_theme_name = DEFAULT_THEME_NAME # Fallback if alias maps to non-existent theme
+                        else:
+                            theme_found = True
+                            logger.info(f"Alias '{alias}' matched in AI suggestion '{suggestion}'. Using mapped theme: {selected_theme_name}")
+                        break # Found an alias match for this suggestion, move to next suggestion or finish
         
-        if not theme_found_by_keyword:
-            logger.info(f"No keywords from THEME_STYLES found in AI suggestions {theme_suggestions}. Using default theme: {DEFAULT_THEME_NAME}")
+        if not theme_found:
+            logger.info(f"No matching aliases found in AI suggestions {theme_suggestions}. Using default theme: {DEFAULT_THEME_NAME}")
+            selected_theme_name = DEFAULT_THEME_NAME # Ensure it's default if no alias found
+
     elif not apply_styles:
-         logger.info("Styling is disabled. Presentation will have default PPTX styles.")
+        logger.info("Styling is disabled. Presentation will have default PPTX styles.")
+        selected_theme_name = DEFAULT_THEME_NAME # Ensure it's default if styling is off
     else: # apply_styles is True but no theme_suggestions
-        logger.info(f"No theme suggestions provided. Using default theme: {DEFAULT_THEME_NAME}") # Keep this log
+        logger.info(f"No theme suggestions provided. Using default theme: {DEFAULT_THEME_NAME}")
+        selected_theme_name = DEFAULT_THEME_NAME # Ensure it's default
     
     # The existing log: logger.info(f"PPT Creation: Selected theme name: {selected_theme_name}") will still run after this block.
     logger.info(f"PPT Creation: Selected theme name: {selected_theme_name}")

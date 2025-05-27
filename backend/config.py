@@ -89,6 +89,28 @@ THEME_STYLES = {
     }
 }
 
+THEME_KEYWORD_ALIASES = {
+    "technology": [
+        "ai", "artificial intelligence", "tech", "innovation", "digital", 
+        "software", "computer", "robotics", "automation", "future tech",
+        "advancements", "transformation", "singularity", "algorithm"
+    ],
+    "nature": [
+        "environment", "eco", "green", "forest", "outdoors", "wildlife", 
+        "sustainability", "conservation", "planet", "earth", "natural"
+    ],
+    "business": [
+        "finance", "corporate", "company", "market", "economic", "investment",
+        "strategy", "management", "entrepreneur", "commerce", "industry", "reports"
+    ],
+    "education": [
+        "learning", "school", "university", "academic", "study", "teaching",
+        "knowledge", "curriculum", "student", "pedagogy"
+    ]
+    # Add other main themes here if they exist and need aliases,
+    # but not for "default" as it's a fallback.
+}
+
 # --- Application Settings ---
 PPT_OUTPUT_DIR = "generated_files"
 PLACEHOLDER_IMAGE_DIR_NAME = "placeholders" # Relative to PPT_OUTPUT_DIR
