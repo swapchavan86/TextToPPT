@@ -79,11 +79,11 @@ THEME_STYLES = {
     },
     "default": { # Fallback theme
         "colors": {
-            "primary": "003366",
-            "secondary": "0072C6",
-            "accent": "66B2FF",
-            "background": "F0F8FF", # Alice Blue
-            "text": "333333"
+            "primary": "bdc3c7",    # Silver (for titles)
+            "secondary": "3498db",  # Peter River blue (accent1)
+            "accent": "2980b9",     # Belize Hole blue (accent2)
+            "background": "2c3e50", # Midnight Blue / Dark Slate Grey
+            "text": "ecf0f1"         # Light Grey / Off-white (for body text)
         },
         "font": "Calibri"
     }
