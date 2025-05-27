@@ -1,6 +1,6 @@
 # 🧠 Text to PPT Generator
 
-**Text to PPT Generator** is a GenAI-powered tool that helps users convert any topic or text into a structured, professional-looking PowerPoint presentation in seconds. It uses OpenAI's GPT API to generate slide content and `python-pptx` to build downloadable `.pptx` files.
+**Text to PPT Generator** is a GenAI-powered tool that helps users convert any topic or text into a structured, professional-looking PowerPoint presentation in seconds. It uses Google's Generative AI to generate slide content and `python-pptx` to build downloadable `.pptx` files.
 
 ---
 
@@ -20,7 +20,7 @@
 |--------------|-------------------------------|
 | Frontend     | React / HTML / Tailwind CSS   |
 | Backend      | Python, FastAPI               |
-| AI Service   | OpenAI GPT API                |
+| AI Service   | Google Generative AI (Gemini) |
 | Slide Builder| python-pptx                   |
 | Security     | HTTPS, API key in `.env`      |
 | Deployment   | GitHub + Vercel/Render (opt)  |
@@ -33,8 +33,7 @@
 ├── frontend/ # React-based UI
 ├── backend/ # FastAPI service
 │ ├── main.py # API logic
-│ └── ppt_generator.py
-├── prompts/ # GPT prompt templates
+│ └── ppt_utils.py
 ├── .env.example # Example API key format
 └── README.md</pre>
 
@@ -51,7 +50,10 @@ cd text-to-ppt
 ```bash
 cd backend
 pip install -r requirements.txt
-cp .env.example .env  # Add your OpenAI API key
+# Create a .env file (e.g., by copying from a template if provided, or creating one manually)
+# and add your Google API key like this:
+# GOOGLE_API_KEY="your_google_api_key_here"
+# Alternatively, ensure GOOGLE_API_KEY is set as an environment variable.
 uvicorn main:app --reload
 ```
 # 2. Set up frontend (Optional)
