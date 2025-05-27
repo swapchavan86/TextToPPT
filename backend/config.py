@@ -82,7 +82,7 @@ THEME_STYLES = {
             "primary": "003366",
             "secondary": "0072C6",
             "accent": "66B2FF",
-            "background": "FFFFFF", # White
+            "background": "F0F8FF", # Alice Blue
             "text": "333333"
         },
         "font": "Calibri"
