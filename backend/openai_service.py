@@ -1,9 +1,10 @@
 import os
 import time
 import logging
+import asyncio
 from pathlib import Path
 from dotenv import load_dotenv
-from openai import OpenAI
+from openai import AsyncOpenAI
 from fastapi import HTTPException
 
 # Setup logging
@@ -19,7 +20,7 @@ if not api_key:
     logger.error("OPENAI_API_KEY is missing or invalid. Ensure .env file is present in backend/ and correctly configured.")
     raise RuntimeError("OPENAI_API_KEY is missing or invalid in the .env file. Service cannot start.")
 
-client = OpenAI(api_key=api_key)
+client = AsyncOpenAI(api_key=api_key)
 logger.info(f"OpenAI client initialized in openai_service. OPENAI_API_KEY loaded: {api_key is not None}")
 
 def generate_prompt(topic: str, tone: str) -> str:
@@ -34,26 +35,38 @@ def generate_prompt(topic: str, tone: str) -> str:
         "}"
     )
 
-def call_openai_with_retry(prompt: str, retries=3, initial_delay=5):
+async def call_openai_with_retry(prompt: str, retries=3, initial_delay=5):
     delay = initial_delay
     for attempt in range(1, retries + 1):
         try:
             logger.info(f"OpenAI API call attempt {attempt}")
-            response = client.chat.completions.create(
-                model="gpt-3.5-turbo",
-                messages=[
-                    {"role": "system", "content": "You are an expert in generating presentation slides."},
-                    {"role": "user", "content": prompt},
-                ],
-                timeout=30
-            )
+            # Define a total timeout for the attempt, e.g., 45 seconds
+            attempt_timeout = 45
+            try:
+                response = await asyncio.wait_for(
+                    client.chat.completions.create(
+                        model="gpt-3.5-turbo",
+                        messages=[
+                            {"role": "system", "content": "You are an expert in generating presentation slides."},
+                            {"role": "user", "content": prompt},
+                        ],
+                        timeout=30 # This is OpenAI's own timeout for the operation
+                    ),
+                    timeout=attempt_timeout # This is the asyncio timeout for the entire awaitable
+                )
+            except asyncio.TimeoutError:
+                logger.error(f"OpenAI API call attempt {attempt} timed out after {attempt_timeout} seconds by asyncio.wait_for.")
+                if attempt == retries:
+                    raise HTTPException(status_code=504, detail=f"OpenAI API call timed out after {attempt_timeout}s and {retries} retries.")
+                raise TimeoutError(f"asyncio.wait_for timed out after {attempt_timeout}s") # This will be caught by `except Exception as e`
+
             # Ensure response and content are valid before returning
             if not response or not response.choices or response.choices[0].message.content is None:
                 logger.error(f"OpenAI returned an empty or invalid response on attempt {attempt}.")
                 if attempt == retries:
                     raise HTTPException(status_code=500, detail="OpenAI returned an empty or invalid response after multiple retries.")
                 # Allow retry for empty/invalid responses as well
-                time.sleep(delay) # wait before retrying for this case too
+                await asyncio.sleep(delay) # wait before retrying for this case too
                 delay *= 2 # increase delay
                 continue # Explicitly continue to next attempt
 
@@ -67,8 +80,15 @@ def call_openai_with_retry(prompt: str, retries=3, initial_delay=5):
                     logger.error("Rate limit exceeded, no more retries left.")
                     raise HTTPException(status_code=429, detail="Rate limit exceeded. Please try again later.")
                 logger.warning(f"Rate limit hit, retrying after {delay} seconds...")
-                time.sleep(delay)
+                await asyncio.sleep(delay)
                 delay *= 2
+            # Check if it's an asyncio timeout specifically, to ensure it's handled for retry
+            elif isinstance(e, TimeoutError) and "asyncio.wait_for timed out" in err_msg:
+                 logger.warning(f"Asyncio timeout error on attempt {attempt}, retrying after {delay} seconds... Error: {err_msg}")
+                 if attempt == retries: # Should have been handled by the specific asyncio.TimeoutError block, but as a safeguard
+                     raise HTTPException(status_code=504, detail=f"OpenAI API call timed out after {attempt_timeout}s and {retries} retries.")
+                 await asyncio.sleep(delay)
+                 delay *= 2
             else:
                 logger.error(f"OpenAI API error: {err_msg}")
                 # On the last attempt, or for generic errors, raise HTTPException
@@ -76,7 +96,7 @@ def call_openai_with_retry(prompt: str, retries=3, initial_delay=5):
                     raise HTTPException(status_code=500, detail=f"OpenAI API error: {err_msg}")
                 # If not the last attempt, log and retry for other errors too
                 logger.warning(f"Encountered API error, retrying after {delay} seconds... Error: {err_msg}")
-                time.sleep(delay)
+                await asyncio.sleep(delay)
                 delay *= 2
 
 

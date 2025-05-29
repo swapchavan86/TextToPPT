@@ -94,7 +94,7 @@ async def generate_ppt(slide_request: SlideRequest):
         raise HTTPException(status_code=500, detail=f"Failed to generate prompt: {e}")
 
     try:
-        response = call_openai_with_retry(prompt)
+        response = await call_openai_with_retry(prompt)
         output_text = response.choices[0].message.content
         
         if output_text is None:
