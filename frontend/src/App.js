@@ -3,12 +3,14 @@ import React, { useState, useEffect, useCallback } from 'react';
 import './App.css';
 
 function App() {
-  const [textInput, setTextInput] = useState("");
+  const [topic, setTopic] = useState(""); // Changed from textInput
+  const [tone, setTone] = useState("educational"); // Added, default "educational"
+  // numSlides state removed
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [downloadUrl, setDownloadUrl] = useState("");
   const [progress, setProgress] = useState(0);
-  const [numSlides, setNumSlides] = useState(5);
   const [operationMessage, setOperationMessage] = useState("");
 
   // Effect to stop loading when operation completes (success or error)
@@ -75,11 +77,12 @@ function App() {
     try {
       const backendUrl = process.env.REACT_APP_BACKEND_URL || "http://localhost:8000";
       const requestBody = {
-        text_input: textInput,
-        num_slides: parseInt(numSlides) || 5,
+        topic: topic, // Changed from textInput
+        tone: tone,   // Added
       };
       console.log("Sending request to backend:", `${backendUrl}/generate-ppt/`, "with body:", JSON.stringify(requestBody));
 
+      // The backend directly streams the file, so we handle the response differently.
       const response = await fetch(`${backendUrl}/generate-ppt/`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -87,43 +90,48 @@ function App() {
       });
 
       console.log("Backend response status:", response.status, response.statusText);
-      const responseData = await response.json(); // Attempt to parse JSON for both success and error
-      console.log("Backend response data:", responseData);
 
       if (!response.ok) {
-        // Try to get a more specific error message from FastAPI's detail structure
+        // Attempt to parse error response as JSON
         let errorMessage = `Request failed: ${response.statusText} (${response.status})`;
-        if (responseData && responseData.detail) {
-          if (Array.isArray(responseData.detail) && responseData.detail[0] && responseData.detail[0].msg) {
-            errorMessage = responseData.detail[0].msg;
-          } else if (typeof responseData.detail === 'string') {
-            errorMessage = responseData.detail;
-          }
-        } else if (responseData && responseData.message) {
-            errorMessage = responseData.message;
+        try {
+            const responseData = await response.json();
+            console.log("Backend error response data:", responseData);
+            if (responseData && responseData.detail) {
+              if (Array.isArray(responseData.detail) && responseData.detail[0] && responseData.detail[0].msg) {
+                errorMessage = responseData.detail[0].msg;
+              } else if (typeof responseData.detail === 'string') {
+                errorMessage = responseData.detail;
+              }
+            } else if (responseData && responseData.message) { // Fallback for other error structures
+                errorMessage = responseData.message;
+            }
+        } catch (jsonError) {
+            // If error response is not JSON, use the status text.
+            console.warn("Could not parse error response as JSON:", jsonError);
         }
         console.error("API Error from backend:", errorMessage);
         throw new Error(errorMessage);
       }
 
-      if (responseData.download_url) {
-        setDownloadUrl(responseData.download_url); // This will trigger useEffect
-        // Progress and operation message will be updated by useEffect and simulateProgress final step
-        console.log("Download URL set from backend:", responseData.download_url);
-      } else {
-        console.error("Backend response OK, but no download_url found in data:", responseData);
-        throw new Error("Server did not provide a download link despite success status.");
+      // If response is OK, it should be a file stream
+      const blob = await response.blob();
+      if (blob.size === 0) {
+        console.error("Backend response OK, but blob is empty.");
+        throw new Error("Server returned an empty presentation file.");
       }
+      const url = window.URL.createObjectURL(blob);
+      setDownloadUrl(url); // This will trigger useEffect for loading and progress
+      // Progress and operation message will be updated by useEffect and simulateProgress final step
+      console.log("Blob URL created for download:", url);
+
 
     } catch (err) {
       console.error("Error in handleGenerate (fetch or processing):", err);
       setError(err.message || "An unknown error occurred during generation.");
       // setLoading(false) and progress reset will be handled by useEffect due to setError
     } finally {
-        // Interval must be cleared if it's still running
-        // (e.g., if an error occurred before downloadUrl was set)
         clearInterval(progressInterval);
-        // setLoading(false) is handled by the useEffect hook based on downloadUrl or error states
     }
   };
 
@@ -133,14 +141,16 @@ function App() {
       setOperationMessage("Download starting...");
       const anchor = document.createElement('a');
       anchor.href = downloadUrl;
-      const filename = downloadUrl.substring(downloadUrl.lastIndexOf('/') + 1) || `${textInput.substring(0,20) || "presentation"}.pptx`;
+      // Use topic for filename
+      const filename = `${topic.substring(0,30).replace(/\s+/g, '_') || "presentation"}.pptx`;
       anchor.download = filename; 
       document.body.appendChild(anchor);
       anchor.click();
       document.body.removeChild(anchor);
+      // window.URL.revokeObjectURL(downloadUrl); // Clean up the object URL
       setOperationMessage("Download initiated!");
       // Optionally reset downloadUrl if you want the button to disappear after one click
-      // setTimeout(() => setDownloadUrl(""), 2000); 
+      // setTimeout(() => { setDownloadUrl(""); window.URL.revokeObjectURL(downloadUrl); }, 2000); 
     } else {
       console.log("No download URL available to trigger download.");
       setError("Download URL is not available. Please try generating again.");
@@ -152,6 +162,14 @@ function App() {
     "Content Marketing for Small Businesses", "Mindfulness and Well-being in the Workplace"
   ];
 
+  const availableTones = [
+    { key: "educational", name: "Educational", icon: "🎓" },
+    { key: "formal", name: "Formal", icon: "👔" },
+    { key: "casual", name: "Casual", icon: "😊" },
+    { key: "professional", name: "Professional", icon: "💼" },
+    { key: "enthusiastic", name: "Enthusiastic", icon: "🎉" },
+  ];
+
   return (
     <div className="app-container">
       <div className="app-wrapper">
@@ -161,52 +179,58 @@ function App() {
           <div className="header">
             <div className="icon-container"><span className="icon">🎨</span></div>
             <h1 className="title">AI PowerPoint Generator</h1>
-            <p className="subtitle">Transform text into presentations instantly</p>
+            <p className="subtitle">Transform your ideas into presentations instantly</p>
           </div>
 
           <div className="form-group">
-            <label className="form-label">📝 Enter detailed text or a topic for your presentation:</label>
+            <label className="form-label">📝 What's your presentation topic?</label>
             <div className="input-container">
               <textarea
                 className="form-input"
-                placeholder="e.g., A comprehensive analysis of the impact of artificial intelligence on the global economy, covering key sectors like healthcare, finance, and manufacturing, along with potential societal implications and future trends..."
-                value={textInput}
-                onChange={(e) => setTextInput(e.target.value)}
+                placeholder="e.g., The future of renewable energy"
+                value={topic}
+                onChange={(e) => setTopic(e.target.value)}
                 rows={5}
                 disabled={loading}
               />
-              {textInput && !loading && (<div className="input-check">✓</div>)}
+              {topic && !loading && (<div className="input-check">✓</div>)}
             </div>
-            {!textInput && !loading && (
+            {!topic && !loading && (
               <div className="suggestions">
                 <p className="suggestions-label">💡 Try these examples (you can expand on them in the text area):</p>
                 <div className="suggestions-list">
                   {exampleTopics.slice(0, 3).map((example, idx) => (
-                    <button key={idx} onClick={() => setTextInput(example)} className="suggestion-btn">{example}</button>
+                    <button key={idx} onClick={() => setTopic(example)} className="suggestion-btn">{example}</button>
                   ))}
                 </div>
               </div>
             )}
           </div>
 
+          {/* Tone Selection UI */}
           <div className="form-group">
-            <label htmlFor="numSlides" className="form-label">⚙️ Number of Content Slides (approx.):</label>
-            <input
-              type="number"
-              id="numSlides"
-              className="form-input form-input-small"
-              value={numSlides}
-              onChange={(e) => setNumSlides(Math.max(1, Math.min(15, parseInt(e.target.value) || 1)))} // Clamp values
-              min="1"
-              max="15"
-              disabled={loading}
-            />
+            <label className="form-label">🎭 Choose your style:</label>
+            <div className="tone-buttons">
+              {availableTones.map((toneItem) => (
+                <button
+                  key={toneItem.key}
+                  onClick={() => setTone(toneItem.key)}
+                  className={`tone-btn ${tone === toneItem.key ? "tone-btn-active" : ""}`}
+                  disabled={loading}
+                >
+                  <div className="tone-icon">{toneItem.icon}</div>
+                  {toneItem.name}
+                </button>
+              ))}
+            </div>
           </div>
+          
+          {/* Number of Slides input removed */}
 
           <button
             onClick={handleGenerate}
-            disabled={loading || !textInput.trim()}
-            className={`generate-btn ${loading || !textInput.trim() ? "generate-btn-disabled" : ""}`}
+            disabled={loading || !topic.trim()} // Depends on topic now
+            className={`generate-btn ${loading || !topic.trim() ? "generate-btn-disabled" : ""}`}
           >
             {loading ? (
               <div className="btn-content"><div className="spinner"></div>Generating...</div>
@@ -215,7 +239,7 @@ function App() {
             )}
           </button>
 
-          {(loading || progress > 0) && ( // Show progress if loading OR if progress was made (e.g. success but before clearing)
+          {(loading || progress > 0) && (
             <div className="progress-container">
               <div className="progress-text">
                 <span>{operationMessage || (loading ? "Processing..." : "Done!")}</span>
@@ -225,13 +249,13 @@ function App() {
             </div>
           )}
 
-          {downloadUrl && !loading && !error && ( // Show download button only on success
+          {downloadUrl && !loading && !error && (
             <button onClick={triggerDownload} className="download-btn">
               <div className="btn-content"><span className="btn-icon">📥</span>Download Your PPT</div>
             </button>
           )}
 
-          {error && !loading && ( // Show error only when not loading
+          {error && !loading && (
             <div className="error-container">
               <div className="error-content">
                 <span className="error-icon">⚠️</span>
