@@ -373,23 +373,23 @@ body {
   .app-container {
     padding: 0.5rem;
   }
-  
+
   .main-card {
     padding: 1.5rem;
   }
-  
+
   .title {
     font-size: 1.25rem;
   }
-  
+
   .tone-buttons {
     grid-template-columns: 1fr;
   }
-  
+
   .suggestions-list {
     flex-direction: column;
   }
-  
+
   .suggestion-btn {
     text-align: left;
   }
