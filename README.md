@@ -30,12 +30,32 @@
 ## 📂 Project Structure
 
 <pre>text-to-ppt/
-├── frontend/ # React-based UI
 ├── backend/ # FastAPI service
-│ ├── main.py # API logic
-│ └── ppt_utils.py
-├── .env.example # Example API key format
-└── README.md</pre>
+│   ├── assets/
+│   ├── init.py
+│   ├── ai_services.py
+│   ├── config.py
+│   ├── main.py # API logic
+│   ├── models.py
+│   ├── ppt_utils.py
+│   ├── requirements.txt
+│   └── .env (user-created for API keys)
+├── frontend/ # React-based UI
+│   ├── public/
+│   ├── src/
+│   └── package.json
+├── logs/
+├── venv/
+│   ├── Include/
+│   ├── Lib/
+│   └── Scripts/
+├── .gitattributes
+├── .gitignore
+├── package-lock.json
+├── package.json
+├── pyvenv.cfg
+└── README.md
+</pre>
 
 ⚙️ Setup Instructions
 
