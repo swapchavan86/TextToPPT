@@ -45,15 +45,10 @@
 │   ├── src/
 │   └── package.json
 ├── logs/
-├── venv/
-│   ├── Include/
-│   ├── Lib/
-│   └── Scripts/
 ├── .gitattributes
 ├── .gitignore
 ├── package-lock.json
 ├── package.json
-├── pyvenv.cfg
 └── README.md
 </pre>
 
