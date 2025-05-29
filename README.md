@@ -38,16 +38,30 @@ The backend API provides standard OpenAPI documentation. Once the backend server
 
 <pre>text-to-ppt/
 ├── backend/
+│   ├── pycache/
+│   ├── .pytest_cache/
+│   ├── assets/
+│   ├── generated_files/
+│   ├── init.py
+│   ├── .env (user-created for API keys)
 │   ├── main.py
-│   └── requirements.txt
-│   └── .env (user-created for API keys)
+│   ├── models.py
+│   ├── openai_service.py
+│   ├── ppt_utils.py
+│   ├── requirements.txt
+│   └── venv/
+│       ├── Include/
+│       ├── Lib/
+│       └── Scripts/
 ├── frontend/
 │   ├── public/
 │   ├── src/
-│   └── package.json 
+│   └── package.json
 ├── tests/
+│   ├── pycache/
 │   └── test_main.py
 ├── .gitignore
+├── pyvenv.cfg
 └── README.md</pre>
 
 ---
