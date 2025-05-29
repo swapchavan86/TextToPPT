@@ -44,6 +44,8 @@
 │   ├── public/
 │   ├── src/
 │   └── package.json
+├── tests
+│   ├── test_ai_services.py
 ├── logs/
 ├── .gitattributes
 ├── .gitignore
