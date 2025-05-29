@@ -27,117 +27,95 @@
 
 ---
 
-## 📖 OpenAPI Documentation
-
-The FastAPI backend provides automatically generated API documentation compliant with the OpenAPI Specification. You can access it through the following URLs when the backend server is running:
-
-- **Swagger UI:** `http://localhost:8000/docs`
-- **ReDoc:** `http://localhost:8000/redoc`
-
-These interfaces allow you to interactively explore the API endpoints, view request/response models, and test the API.
+##  OpenAPI Documentation
+The backend API provides standard OpenAPI documentation. Once the backend server is running (e.g., with `uvicorn backend.main:app --reload --port 8000`), you can access:
+- Swagger UI at [http://localhost:8000/docs](http://localhost:8000/docs)
+- ReDoc at [http://localhost:8000/redoc](http://localhost:8000/redoc)
 
 ---
 
 ## 📂 Project Structure
 
-The project is organized as follows:
-
 <pre>text-to-ppt/
-├── backend/                 # Contains the FastAPI backend application
-│   ├── main.py              # Core API logic for presentation generation
-│   └── requirements.txt     # Python dependencies for the backend
-├── frontend/                # Contains the React-based frontend application
-│   ├── public/              # Public assets for the frontend
-│   ├── src/                 # Frontend source code (React components, etc.)
-│   ├── package.json         # Frontend dependencies and scripts
-│   └── ... (other frontend files like package-lock.json)
-├── tests/                   # Contains backend API tests
-│   └── test_main.py         # Pytest tests for the API endpoints
-├── .gitignore               # Specifies intentionally untracked files
-├── README.md                # This file
-└── ... (other root files like gitattributes)
-</pre>
-
-- **`backend/`**: Houses the Python FastAPI application that handles API requests, interacts with the OpenAI API, and generates `.pptx` files.
-- **`frontend/`**: Contains the React application that provides the user interface for interacting with the Text to PPT Generator.
-- **`tests/`**: Includes integration tests for the backend API, ensuring endpoints behave as expected.
+├── backend/
+│   ├── main.py
+│   └── requirements.txt
+│   └── .env (user-created for API keys)
+├── frontend/
+│   ├── public/
+│   ├── src/
+│   └── package.json 
+├── tests/
+│   └── test_main.py
+├── .gitignore
+└── README.md</pre>
 
 ---
 
-## 🛠️ Dependencies
+## 🛠️ Dependencies & Setup
 
-The project's dependencies are managed separately for the backend and frontend.
+### Backend
+Located in the `backend/` directory.
+- Key dependencies: `fastapi`, `uvicorn`, `python-pptx`, `openai`, `python-dotenv`
+- Test dependencies: `pytest`, `httpx`, `pytest-mock`
+- All backend and test dependencies are listed in `backend/requirements.txt`.
+- Setup:
+  ```bash
+  # Clone the repository first if you haven't:
+  # git clone https://github.com/your-username/text-to-ppt.git # Replace with actual URL
+  # cd text-to-ppt
 
-### Backend Dependencies (`backend/requirements.txt`)
-The backend relies on Python and its dependencies are listed in `backend/requirements.txt`. Key dependencies include:
-- `fastapi`: For building the API.
-- `uvicorn`: For running the FastAPI server.
-- `python-pptx`: For generating PowerPoint presentations.
-- `openai`: For interacting with the OpenAI API.
-- `python-dotenv`: For managing environment variables (like API keys).
-- `pytest`: For running tests.
-- `httpx`: For making HTTP requests within tests.
+  cd backend
+  pip install -r requirements.txt
+  # Create a .env file (e.g., by copying .env.example if provided, or manually).
+  # It should contain your OpenAI API key:
+  # OPENAI_API_KEY='your_openai_api_key_here'
+  #
+  # The tests use a base URL for the server, which defaults to http://127.0.0.1:8000.
+  # If your server runs on a different URL during testing, set it in your .env file:
+  # PYTEST_BASE_URL='http://your_test_server_url:port'
+  cd ..
+  ```
 
-### Frontend Dependencies (`frontend/package.json`)
-The frontend is a React application. Its dependencies are managed using `npm` and are listed in `frontend/package.json`. Key dependencies include:
-- `react`
-- `tailwindcss` (or other relevant UI libraries based on `package.json`)
-
-### Testing Dependencies
-Dependencies required for running tests, such as `pytest` and `httpx`, are included in the `backend/requirements.txt` file.
-
----
-
-## ⚙️ Setup Instructions
-
-# 1. Clone the repo
-```bash
-git clone https://github.com/your-username/text-to-ppt.git # Replace with the actual repo URL if different
-cd text-to-ppt
-```
-
-# 2. Set up Backend
-```bash
-cd backend
-pip install -r requirements.txt
-# Create a .env file from .env.example (if provided) or manually set your OpenAI API key
-# Example: cp .env.example .env 
-# Then, add your OPENAI_API_KEY to the .env file.
-# Ensure your .env file is in the /backend directory.
-uvicorn main:app --reload
-```
-The backend server will typically start on `http://localhost:8000`.
-
-# 3. Set up Frontend (Optional)
-```bash
-cd frontend # Navigate from the root directory
-npm install
-npm start
-```
-The frontend development server will typically start on `http://localhost:3000`.
+### Frontend
+Located in the `frontend/` directory.
+- Uses Node.js and npm.
+- Key dependencies: `react` (details in `frontend/package.json`).
+- Setup:
+  ```bash
+  cd frontend
+  npm install
+  npm start 
+  # The frontend will typically be available at http://localhost:3000
+  cd ..
+  ```
 
 ---
 
 ## 🧪 Testing
-
-This project includes integration tests for the backend API. These tests verify the functionality of the `/generate-ppt/` endpoint.
+The project includes backend API integration tests using `pytest`. These tests verify the functionality of the `/generate-ppt/` endpoint.
 
 **Prerequisites:**
-- Ensure all backend dependencies, including `pytest` and `httpx`, are installed by running `pip install -r backend/requirements.txt` from the `backend` directory (or project root, adjusting path).
-- **The backend server must be running** for the tests to execute, as they make live requests to the API. Start the backend server using `uvicorn main:app --reload` in the `backend` directory.
+*   The FastAPI backend server **must be running** before executing the tests. Start it from the `backend` directory:
+    ```bash
+    cd backend
+    uvicorn main:app --reload --port 8000 
+    # Or your usual command to start the server
+    cd .. 
+    ```
+*   Ensure all backend dependencies, including test dependencies, are installed:
+    ```bash
+    pip install -r backend/requirements.txt
+    ```
 
 **Running Tests:**
-1. Navigate to the project root directory (`text-to-ppt/`).
-2. Run the tests using Pytest:
-   ```bash
-   pytest tests/test_main.py
-   ```
-   Or, to run all tests discovered by Pytest (if configuration allows):
-   ```bash
-   pytest
-   ```
+From the **project root directory**, run:
+```bash
+pytest tests/test_main.py
+```
 
-Test results will be displayed in your terminal.
+**Note on OpenAI Calls:**
+The tests are configured to **mock** calls to the OpenAI API. This means they do not make actual calls to OpenAI, ensuring they run quickly, reliably, and without incurring API costs or hitting rate limits. The mocking simulates successful responses from OpenAI for testing the application's internal logic.
 
 ---
 
