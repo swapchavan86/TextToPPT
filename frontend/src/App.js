@@ -171,8 +171,8 @@ function App() {
   ];
 
   return (
-    <div className="app-container">
-      <div className="app-wrapper">
+    <div className="app-container" role="main">
+      <div className="app-wrapper" aria-label="Application form container">
         <div className="main-card">
           <div className="bg-element bg-element-1"></div>
           <div className="bg-element bg-element-2"></div>
@@ -183,7 +183,7 @@ function App() {
           </div>
 
           <div className="form-group">
-            <label className="form-label">📝 What's your presentation topic?</label>
+            <label htmlFor="topic-input" className="form-label">📝 What's your presentation topic?</label>
             <div className="input-container">
               <textarea
                 className="form-input"
@@ -191,6 +191,7 @@ function App() {
                 value={topic}
                 onChange={(e) => setTopic(e.target.value)}
                 rows={5}
+                id="topic-input"
                 disabled={loading}
               />
               {topic && !loading && (<div className="input-check">✓</div>)}
@@ -209,7 +210,7 @@ function App() {
 
           {/* Tone Selection UI */}
           <div className="form-group">
-            <label className="form-label">🎭 Choose your style:</label>
+            <label className="form-label">🎭 Choose your style:</label> {/* No 'for' as it's not tied to a single input */}
             <div className="tone-buttons">
               {availableTones.map((toneItem) => (
                 <button

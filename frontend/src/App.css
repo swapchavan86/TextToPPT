@@ -6,15 +6,20 @@
 }
 
 body {
-  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  font-family: 'Roboto', sans-serif; /* Modern sans-serif for body */
   line-height: 1.6;
-  color: #374151;
+  color: #4a5568; /* Darker grey for better readability */
+  background-color: #f7fafc; /* Light grey background */
+  /* Subtle background pattern or texture can be added here */
+  /* For example, a subtle noise: */
+  /* background-image: url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAMAAAADCAYAAABWKagzAAAAFklEQVQIHWNgQAYyMjIwMDAwAPAABC4AmP3xUoWnAAAAAElFTkSuQmCC'); */
 }
 
 /* Main Container */
 .app-container {
   min-height: 100vh;
-  background: linear-gradient(135deg, #e0e7ff 0%, #ffffff 50%, #f3e8ff 100%);
+  /* Using the body background now */
+  background: none;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -28,10 +33,10 @@ body {
 
 /* Main Card */
 .main-card {
-  background: rgba(255, 255, 255, 0.8);
+  background: rgba(255, 255, 255, 0.95); /* Slightly less translucent */
   backdrop-filter: blur(10px);
   border-radius: 1.5rem;
-  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05); /* Softer shadow */
   padding: 2rem;
   border: 1px solid rgba(255, 255, 255, 0.2);
   position: relative;
