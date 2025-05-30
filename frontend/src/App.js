@@ -3,124 +3,118 @@ import React, { useState, useEffect, useCallback } from 'react';
 import './App.css';
 
 function App() {
-  const [topic, setTopic] = useState("");
-  const [tone, setTone] = useState("educational");
+  const [textInput, setTextInput] = useState(""); // GoogleAI uses textInput
+  const [tone, setTone] = useState("educational"); // Added from main
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [downloadUrl, setDownloadUrl] = useState("");
   const [progress, setProgress] = useState(0);
+  const [numSlides, setNumSlides] = useState(5); // GoogleAI has numSlides
   const [operationMessage, setOperationMessage] = useState("");
-  const [isFormValid, setIsFormValid] = useState(false);
+  const [isFormValid, setIsFormValid] = useState(false); // Added from main, adapted for textInput
 
-  // Form validation effect (from first file)
+  // Form validation effect (adapted for textInput)
   useEffect(() => {
-    setIsFormValid(topic.trim().length > 0);
-  }, [topic]);
+    setIsFormValid(textInput.trim().length > 0);
+  }, [textInput]);
 
-  // Effect to stop loading when operation completes (from first file)
+  // Effect to stop loading when operation completes (GoogleAI version)
   useEffect(() => {
     if (downloadUrl || error) {
       setLoading(false);
       if (downloadUrl && !error) {
-        setProgress(100);
+        setProgress(100); 
         setOperationMessage("Presentation ready for download!");
       } else if (error) {
-        setProgress(0);
+        setProgress(0); 
       }
     }
   }, [downloadUrl, error]);
 
-  // Enhanced progress simulation (from first file)
+  // Progress simulation (GoogleAI version with its messages)
   const simulateProgress = useCallback(() => {
     setProgress(0);
-    setOperationMessage("Initializing AI engine...");
+    setOperationMessage("Initializing..."); // GoogleAI message
     let currentProgress = 0;
     const intervalId = setInterval(() => {
-      if (!loading && !downloadUrl) {
+      if (!loading && !downloadUrl) { 
           clearInterval(intervalId);
-          if (!error) setProgress(0);
+          if (!error) setProgress(0); 
           if (!error) setOperationMessage("");
           return;
       }
-
-      currentProgress += Math.random() * 8 + 5;
-
-      if (downloadUrl) {
+      currentProgress += Math.random() * 10 + 7; // GoogleAI timing
+      if (downloadUrl) { 
         setProgress(100);
-        setOperationMessage("Finalizing presentation...");
+        setOperationMessage("Finalizing and preparing download..."); // GoogleAI message
         clearInterval(intervalId);
         return;
       }
-
       if (currentProgress >= 95) {
         setProgress(95);
-        setOperationMessage("Applying final touches...");
+        setOperationMessage("Almost ready, wrapping up..."); // GoogleAI message
       } else {
         setProgress(currentProgress);
-        if (currentProgress < 25) setOperationMessage("Analyzing your content...");
-        else if (currentProgress < 50) setOperationMessage("Generating slide layouts...");
-        else if (currentProgress < 75) setOperationMessage("Crafting visual elements...");
-        else setOperationMessage("Assembling presentation...");
+        if (currentProgress < 30) setOperationMessage("Contacting AI service..."); // GoogleAI message
+        else if (currentProgress < 70) setOperationMessage("AI is crafting your content..."); // GoogleAI message
+        else setOperationMessage("Assembling presentation slides..."); // GoogleAI message
       }
-    }, 400);
+    }, 450); // GoogleAI timing
     return intervalId;
-  }, [loading, downloadUrl, error]);
+  }, [loading, downloadUrl, error]); 
 
-  // Complete API connection logic from first file
+  // API connection logic (GoogleAI version, modified to include tone)
   const handleGenerate = async () => {
     console.log("handleGenerate called");
-    setLoading(true);
+    setLoading(true); 
     setError("");
     setDownloadUrl("");
-    setOperationMessage("Starting generation...");
+    setOperationMessage("Starting generation..."); 
 
     const progressInterval = simulateProgress();
 
     try {
       const backendUrl = process.env.REACT_APP_BACKEND_URL || "http://localhost:8000";
       const requestBody = {
-        topic: topic,
-        tone: tone,
+        text_input: textInput, // GoogleAI uses text_input
+        num_slides: parseInt(numSlides) || 5, // GoogleAI uses num_slides
+        tone: tone, // Added tone
       };
       console.log("Sending request to backend:", `${backendUrl}/generate-ppt/`, "with body:", JSON.stringify(requestBody));
-
+      
       const response = await fetch(`${backendUrl}/generate-ppt/`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(requestBody),
       });
-
+      
+      // GoogleAI expects JSON response with download_url
+      const responseData = await response.json(); 
       console.log("Backend response status:", response.status, response.statusText);
+      console.log("Backend response data:", responseData);
 
       if (!response.ok) {
         let errorMessage = `Request failed: ${response.statusText} (${response.status})`;
-        try {
-            const responseData = await response.json();
-            console.log("Backend error response data:", responseData);
-            if (responseData && responseData.detail) {
-              if (Array.isArray(responseData.detail) && responseData.detail[0] && responseData.detail[0].msg) {
-                errorMessage = responseData.detail[0].msg;
-              } else if (typeof responseData.detail === 'string') {
-                errorMessage = responseData.detail;
-              }
-            } else if (responseData && responseData.message) {
-                errorMessage = responseData.message;
-            }
-        } catch (jsonError) {
-            console.warn("Could not parse error response as JSON:", jsonError);
+        if (responseData && responseData.detail) {
+          if (Array.isArray(responseData.detail) && responseData.detail[0] && responseData.detail[0].msg) {
+            errorMessage = responseData.detail[0].msg;
+          } else if (typeof responseData.detail === 'string') {
+            errorMessage = responseData.detail;
+          }
+        } else if (responseData && responseData.message) { // Check for general message property
+            errorMessage = responseData.message;
         }
         console.error("API Error from backend:", errorMessage);
         throw new Error(errorMessage);
       }
 
-      const blob = await response.blob();
-      if (blob.size === 0) {
-        console.error("Backend response OK, but blob is empty.");
-        throw new Error("Server returned an empty presentation file.");
+      if (responseData.download_url) { // GoogleAI uses download_url from JSON
+        setDownloadUrl(responseData.download_url); 
+        console.log("Download URL received:", responseData.download_url);
+      } else {
+        console.error("Backend response OK, but no download_url in JSON response.");
+        throw new Error("Server did not provide a download link despite success status.");
       }
-      const url = window.URL.createObjectURL(blob);
-      setDownloadUrl(url);
-      console.log("Blob URL created for download:", url);
 
     } catch (err) {
       console.error("Error in handleGenerate (fetch or processing):", err);
@@ -130,14 +124,14 @@ function App() {
     }
   };
 
-  // Download trigger logic from first file
+  // Download trigger logic (GoogleAI version with its filename logic)
   const triggerDownload = () => {
     if (downloadUrl) {
       console.log("Attempting to trigger download for URL:", downloadUrl);
-      setOperationMessage("Preparing download...");
+      setOperationMessage("Download starting...");
       const anchor = document.createElement('a');
       anchor.href = downloadUrl;
-      const filename = `${topic.substring(0,30).replace(/\s+/g, '_') || "presentation"}.pptx`;
+      const filename = downloadUrl.substring(downloadUrl.lastIndexOf('/') + 1) || `${textInput.substring(0,20) || "presentation"}.pptx`; // Uses textInput
       anchor.download = filename; 
       document.body.appendChild(anchor);
       anchor.click();
@@ -149,15 +143,13 @@ function App() {
     }
   };
 
-  // Data from second file
+  // Example topics from GoogleAI
   const exampleTopics = [
-    "Effective Time Management Strategies", 
-    "Introduction to Quantum Computing", 
-    "The Future of Renewable Energy Sources",
-    "Content Marketing for Small Businesses", 
-    "Mindfulness and Well-being in the Workplace"
+    "Effective Time Management Strategies", "Introduction to Quantum Computing", "The Future of Renewable Energy Sources",
+    "Content Marketing for Small Businesses", "Mindfulness and Well-being in the Workplace"
   ];
 
+  // Available tones from main branch
   const availableTones = [
     { key: "educational", name: "Educational", icon: "🎓" },
     { key: "formal", name: "Formal", icon: "👔" },
@@ -166,7 +158,7 @@ function App() {
     { key: "enthusiastic", name: "Enthusiastic", icon: "🎉" },
   ];
 
-  // UI Design from second file (completely unchanged)
+  // UI Design from main branch, adapted for GoogleAI logic
   return (
     <div className="min-vh-100 bg-gradient-primary">
       {/* Navigation */}
@@ -261,12 +253,12 @@ function App() {
                     <textarea
                       className="form-control form-control-lg topic-input"
                       placeholder="e.g., The Future of Renewable Energy: Innovations and Challenges"
-                      value={topic}
-                      onChange={(e) => setTopic(e.target.value)}
+                      value={textInput} // Adapted to textInput
+                      onChange={(e) => setTextInput(e.target.value)} // Adapted to setTextInput
                       rows={4}
                       disabled={loading}
                     />
-                    {topic && !loading && (
+                    {textInput && !loading && ( // Adapted to textInput
                       <div className="input-success-indicator">
                         <i className="fas fa-check-circle text-success"></i>
                       </div>
@@ -277,22 +269,22 @@ function App() {
                   <div className="form-text mt-2">
                     <small className="text-muted">
                       <i className="fas fa-info-circle me-1"></i>
-                      Characters: {topic.length} | Be descriptive for better results
+                      Characters: {textInput.length} | Be descriptive for better results {/* Adapted to textInput */}
                     </small>
                   </div>
 
                   {/* Example Topics */}
-                  {!topic && !loading && (
+                  {!textInput && !loading && ( // Adapted to textInput
                     <div className="suggestions-section mt-3">
                       <p className="suggestions-label">
                         <i className="fas fa-star text-warning me-1"></i>
                         <strong>Popular topics:</strong>
                       </p>
                       <div className="suggestions-grid">
-                        {exampleTopics.slice(0, 3).map((example, idx) => (
+                        {exampleTopics.slice(0, 3).map((example, idx) => ( // Uses exampleTopics from GoogleAI scope
                           <button 
                             key={idx} 
-                            onClick={() => setTopic(example)} 
+                            onClick={() => setTextInput(example)} // Adapted to setTextInput
                             className="btn btn-outline-primary btn-sm suggestion-chip"
                           >
                             {example}
@@ -301,6 +293,25 @@ function App() {
                       </div>
                     </div>
                   )}
+                </div>
+                
+                {/* Number of Slides Input (GoogleAI specific) */}
+                <div className="form-section">
+                  <label className="form-label" htmlFor="numSlides">
+                    <i className="fas fa-layer-group text-primary me-2"></i>
+                    Number of Content Slides:
+                  </label>
+                  <input
+                    type="number"
+                    id="numSlides"
+                    className="form-control form-control-lg topic-input" // Re-use a suitable class
+                    value={numSlides}
+                    onChange={(e) => setNumSlides(Math.max(1, Math.min(15, parseInt(e.target.value) || 1)))}
+                    min="1"
+                    max="15"
+                    disabled={loading}
+                    style={{ width: '200px' }} 
+                  />
                 </div>
 
                 {/* Tone Selection */}
@@ -333,8 +344,8 @@ function App() {
                 <div className="d-grid mb-4">
                   <button
                     onClick={handleGenerate}
-                    disabled={loading || !topic.trim()}
-                    className={`btn btn-lg generate-button ${loading || !topic.trim() ? 'disabled' : ''}`}
+                    disabled={loading || !textInput.trim()} // Adapted to textInput
+                    className={`btn btn-lg generate-button ${loading || !textInput.trim() ? 'disabled' : ''}`} // Adapted to textInput
                   >
                     {loading ? (
                       <div className="d-flex align-items-center justify-content-center">
