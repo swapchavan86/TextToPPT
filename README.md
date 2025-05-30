@@ -3,6 +3,8 @@
 **Text to PPT Generator** is a GenAI-powered tool that helps users convert any topic or text into a structured, professional-looking PowerPoint presentation in seconds. It uses Google's Generative AI to generate slide content and `python-pptx` to build downloadable `.pptx` files.
 
 ---
+## 📽️ Demo Video
+[![Watch Demo with Autoplay](https://img.youtube.com/vi/F01J5kqZVgU/hqdefault.jpg)](https://youtu.be/F01J5kqZVgU&autoplay=1)
 
 ## 📌 Features
 
