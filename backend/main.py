@@ -1,3 +1,4 @@
+# main.py
 import json
 import logging
 import os
@@ -15,22 +16,19 @@ from models import SlideRequest
 from ppt_utils import create_presentation_from_slides_data
 from openai_service import generate_prompt, call_openai_with_retry
 
-# Setup logging
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 logger = logging.getLogger("main")
 
 app = FastAPI()
 
-# CORS setup
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Adjust in production
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Detect test environment
 IS_TESTING = os.getenv("TESTING", "").lower() == "true"
 
 if not IS_TESTING:
@@ -45,12 +43,12 @@ if not IS_TESTING:
         except Exception as e:
             logger.error(f"Failed to connect to Redis: {e}", exc_info=True)
             global IS_TESTING
-            IS_TESTING = True  # Fallback to disable rate limiting
+            IS_TESTING = True
 
     @app.on_event("shutdown")
     async def shutdown():
         if FastAPILimiter.redis:
-            await FastAPILimiter.redis.close()
+            await FastAPILimiter.redis.aclose()
 
 @app.exception_handler(HTTP_429_TOO_MANY_REQUESTS)
 async def rate_limit_exceeded_handler(request: Request, exc: HTTPException):
@@ -74,14 +72,14 @@ async def generate_ppt(slide_request: SlideRequest):
         raise HTTPException(status_code=500, detail="Failed to generate prompt")
 
     try:
-        response = call_openai_with_retry(prompt)
+        response = call_openai_with_retry(prompt)  # sync call
         message = response.choices[0].message.content
         if not message:
             raise HTTPException(status_code=500, detail="Empty response from OpenAI")
         message = strip_markdown_code_fence(message)
     except Exception as e:
         logger.error(f"OpenAI API call failed: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"OpenAI API call failed: {e}")
+        raise HTTPException(status_code=500, detail="OpenAI API call failed")
 
     try:
         data = json.loads(message)
