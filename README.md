@@ -36,32 +36,20 @@ The backend API provides standard OpenAPI documentation. Once the backend server
 
 ## 📂 Project Structure
 
-<pre>text-to-ppt/
-├── backend/
-│   ├── pycache/
-│   ├── .pytest_cache/
-│   ├── assets/
-│   ├── generated_files/
-│   ├── init.py
-│   ├── .env (user-created for API keys)
-│   ├── main.py
-│   ├── models.py
-│   ├── openai_service.py
-│   ├── ppt_utils.py
-│   ├── requirements.txt
-│   └── venv/
-│       ├── Include/
-│       ├── Lib/
-│       └── Scripts/
-├── frontend/
-│   ├── public/
-│   ├── src/
-│   └── package.json
-├── tests/
-│   ├── pycache/
-│   └── test_main.py
-├── .gitignore
-├── pyvenv.cfg
+<pre>TextToPPT/
+├── backend/ # FastAPI backend
+│ ├── main.py # Entry point for FastAPI app
+│ ├── models.py # Pydantic data models
+│ ├── openai_service.py # Azure OpenAI service integration
+│ ├── ppt_utils.py # PPT generation logic using python-pptx
+│ ├── init.py
+│ └── requirements.txt
+├── frontend/ # React-based frontend (Bootstrap styled)
+│ ├── src/
+│ ├── public/
+│ └── package.json
+├── tests/ # Pytest test cases for backend
+│ └── test_main.py
 └── README.md</pre>
 
 ---
@@ -80,17 +68,53 @@ Located in the `backend/` directory.
   # cd text-to-ppt
 
   cd backend
+  python -m venv venv
+  venv\\Scripts\\activate          # On Windows
   pip install -r requirements.txt
   # Create a .env file (e.g., by copying .env.example if provided, or manually).
-  # It should contain your OpenAI API key:
-  # OPENAI_API_KEY='your_openai_api_key_here'
-  #
+  # It should contain your Secure API key:
+  # AZURE_OPENAI_API_KEY='your_Secure_api_key_here'
+  #AZURE_OPENAI_ENDPOINT='<<SecureAPIEndPoint>>'
+  #OPENAI_API_VERSION=2024-02-01 or Latest
+  #AZURE_OPENAI_DEPLOYMENT_NAME=<<Gpt Model>>
+  #REDIS_URL=redis://localhost:6379
+```
+Set Python path for local imports (required for both running and testing):
+```bash
+  $env:PYTHONPATH="<<ProjectPath>>\backend"
+```
+Run backend server:
+```bash
+  uvicorn backend.main:app --reload --port 8000
+```
+```bash
   # The tests use a base URL for the server, which defaults to http://127.0.0.1:8000.
   # If your server runs on a different URL during testing, set it in your .env file:
   # PYTEST_BASE_URL='http://your_test_server_url:port'
   cd ..
-  ```
-
+```
+🧪### **Running Tests**
+Install test dependencies:
+```bash
+  pip install -r requirements.txt
+```
+Make sure the backend is not rate-limited during test:
+  Add this line before running tests:
+    ```bash
+      $env:TESTING=true
+    ```
+Run tests from the project root:
+    ```bash
+      pytest tests/
+    ```
+###🧱 **Redis Setup (Required for Rate Limiting)**
+  Redis is used by fastapi-limiter to enforce API request limits.
+  Option 1: Run Redis using Docker (Recommended)
+    Install Docker Desktop: https://www.docker.com/products/docker-desktop
+    Start Docker and run Redis:
+    ```bash
+      docker run -d -p 6379:6379 --name redis-server redis
+    ```
 ### Frontend
 Located in the `frontend/` directory.
 - Uses Node.js and npm.
