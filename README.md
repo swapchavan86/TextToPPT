@@ -18,19 +18,22 @@
 
 | Layer        | Tools/Frameworks              |
 |--------------|-------------------------------|
-| Frontend     | React / HTML / Tailwind CSS   |
+| Frontend     | React / HTML / Bootstrap      |
 | Backend      | Python, FastAPI               |
 | AI Service   | OpenAI GPT API                |
 | Slide Builder| python-pptx                   |
-| Security     | HTTPS, API key in `.env`      |
-| Deployment   | GitHub + Vercel/Render (opt)  |
+| Security     | `.env` for secrets            |
+| Testing      | Pytest, pytest-mock           |
+| Rate Limiting| Redis, fastapi-limiter        |
 
 ---
 
-##  OpenAPI Documentation
-The backend API provides standard OpenAPI documentation. Once the backend server is running (e.g., with `uvicorn backend.main:app --reload --port 8000`), you can access:
-- Swagger UI at [http://localhost:8000/docs](http://localhost:8000/docs)
-- ReDoc at [http://localhost:8000/redoc](http://localhost:8000/redoc)
+## 🌐 OpenAPI Documentation
+
+Once the backend server is running, access:
+
+- Swagger: [http://localhost:8000/docs](http://localhost:8000/docs)  
+- ReDoc: [http://localhost:8000/redoc](http://localhost:8000/redoc)
 
 ---
 
@@ -52,70 +55,94 @@ The backend API provides standard OpenAPI documentation. Once the backend server
 │ └── test_main.py
 └── README.md</pre>
 
+
 ---
 
-## 🛠️ Dependencies & Setup
+## 🛠️ Backend Setup
 
-### Backend
-Located in the `backend/` directory.
-- Key dependencies: `fastapi`, `uvicorn`, `python-pptx`, `openai`, `python-dotenv`
-- Test dependencies: `pytest`, `httpx`, `pytest-mock`
-- All backend and test dependencies are listed in `backend/requirements.txt`.
-- Setup:
-  ```bash
-  # Clone the repository first if you haven't:
-  # git clone https://github.com/your-username/text-to-ppt.git # Replace with actual URL
-  # cd text-to-ppt
+1. Navigate to the backend directory:
 
-  cd backend
-  python -m venv venv
-  venv\\Scripts\\activate          # On Windows
-  pip install -r requirements.txt
-  # Create a .env file (e.g., by copying .env.example if provided, or manually).
-  # It should contain your Secure API key:
-  # AZURE_OPENAI_API_KEY='your_Secure_api_key_here'
-  #AZURE_OPENAI_ENDPOINT='<<SecureAPIEndPoint>>'
-  #OPENAI_API_VERSION=2024-02-01 or Latest
-  #AZURE_OPENAI_DEPLOYMENT_NAME=<<Gpt Model>>
-  #REDIS_URL=redis://localhost:6379
-```
-Set Python path for local imports (required for both running and testing):
-```bash
-  $env:PYTHONPATH="<<ProjectPath>>\backend"
-```
-Run backend server:
-```bash
-  uvicorn backend.main:app --reload --port 8000
-```
-```bash
-  # The tests use a base URL for the server, which defaults to http://127.0.0.1:8000.
-  # If your server runs on a different URL during testing, set it in your .env file:
-  # PYTEST_BASE_URL='http://your_test_server_url:port'
-  cd ..
-```
-🧪### **Running Tests**
-Install test dependencies:
-```bash
-  pip install -r requirements.txt
-```
-Make sure the backend is not rate-limited during test:
-  Add this line before running tests:
     ```bash
-      $env:TESTING=true
+    cd backend
     ```
-Run tests from the project root:
+
+2. Create and activate a virtual environment:
+
     ```bash
-      pytest tests/
+    python -m venv venv
+    .\venv\Scripts\activate  # On Windows
     ```
-###🧱 **Redis Setup (Required for Rate Limiting)**
-  Redis is used by fastapi-limiter to enforce API request limits.
-  Option 1: Run Redis using Docker (Recommended)
-    Install Docker Desktop: https://www.docker.com/products/docker-desktop
-    Start Docker and run Redis:
+
+3. Install dependencies:
+
     ```bash
-      docker run -d -p 6379:6379 --name redis-server redis
+    pip install -r requirements.txt
     ```
-### Frontend
+
+4. Create a `.env` file in `backend/` with:
+
+    ```env
+    AZURE_OPENAI_API_KEY=your_secure_api_key_here
+    AZURE_OPENAI_ENDPOINT=https://your-endpoint.openai.azure.com
+    OPENAI_API_VERSION=2024-02-01
+    AZURE_OPENAI_DEPLOYMENT_NAME=gpt-4o
+    REDIS_URL=redis://localhost:6379
+    ```
+
+5. Set `PYTHONPATH` before running the backend (required for local module imports):
+
+    ```powershell
+    $env:PYTHONPATH="<<ProjectPath>>\backend"
+    ```
+
+6. Run backend server:
+
+    ```bash
+    uvicorn backend.main:app --reload --port 8000
+    ```
+
+---
+
+## 🧪 Running Tests
+
+1. Set environment flag to disable rate limiting:
+
+    ```powershell
+    $env:TESTING=true
+    ```
+
+2. From project root:
+
+    ```bash
+    pytest tests/
+    ```
+
+> Tests use mocked OpenAI calls — no real API usage or cost.
+
+---
+
+## 🧱 Redis Setup (For Rate Limiting)
+
+### Option 1: Using Docker (Recommended)
+
+1. Install Docker Desktop: https://www.docker.com/products/docker-desktop  
+2. Start Redis container:
+
+    ```bash
+    docker run -d -p 6379:6379 --name redis-server redis
+    ```
+
+### Option 2: Local Redis Installation (Optional)
+
+**Windows (Chocolatey):**
+
+```bash
+choco install redis-64
+redis-server
+```
+
+## 🌐 Frontend Setup
+
 Located in the `frontend/` directory.
 - Uses Node.js and npm.
 - Key dependencies: `react` (details in `frontend/package.json`).
@@ -134,28 +161,22 @@ Located in the `frontend/` directory.
 The project includes backend API integration tests using `pytest`. These tests verify the functionality of the `/generate-ppt/` endpoint.
 
 **Prerequisites:**
-*   The FastAPI backend server **must be running** before executing the tests. Start it from the `backend` directory:
-    ```bash
-    cd backend
-    uvicorn main:app --reload --port 8000 
-    # Or your usual command to start the server
-    cd .. 
-    ```
-*   Ensure all backend dependencies, including test dependencies, are installed:
-    ```bash
-    pip install -r backend/requirements.txt
-    ```
+*   Backend server must be running.
+*   ERequired test libraries should be installed.
+*   Disable rate limiting for test mode.
 
-**Running Tests:**
-From the **project root directory**, run:
-```bash
-pytest tests/test_main.py
-```
-
+**Steps:**
+  Set testing environment:
+  ```bash
+    pytest tests/test_main.py
+  ```
+  Run tests from the root directory:
+  ```bash
+    pytest tests/
+  ```
 **Note on OpenAI Calls:**
-The tests are configured to **mock** calls to the OpenAI API. This means they do not make actual calls to OpenAI, ensuring they run quickly, reliably, and without incurring API costs or hitting rate limits. The mocking simulates successful responses from OpenAI for testing the application's internal logic.
+OpenAI calls are mocked to avoid real API usage and cost.
 
----
 
 ## 🔐 Security & Privacy
 
